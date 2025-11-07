@@ -12,7 +12,7 @@
 // 3.routes/api.js - The Traffic Director
 // Routes: POST /api/products/add → goes to product controller
 const crypto = require("crypto");
-const axios=require("axios");
+const axios = require("axios");
 
 class AmazonPAAPI {
   constructor() {
@@ -25,7 +25,7 @@ class AmazonPAAPI {
     this.region = this.detectRegionFromTag();
     this.service = "ProductAdvertisingAPI";
 
-    console.log("🌍 Detected configuration:", { 
+    console.log("🌍 Detected configuration:", {
       partnerTag: this.partnerTag,
       host: this.host,
       region: this.region,
@@ -203,10 +203,8 @@ class AmazonPAAPI {
           "Offers.Listings.MerchantInfo",
           "Offers.Listings.Condition",
           "Offers.Listings.DeliveryInfo.IsPrimeEligible",
-          "Offers.Summaries.LowestPrice"
+          "Offers.Summaries.LowestPrice",
         ],
-
-
       };
 
       console.log("📤 Payload being sent:", JSON.stringify(payload, null, 2));
@@ -218,10 +216,14 @@ class AmazonPAAPI {
         `https://${this.host}/paapi5/getitems`
       );
 
-      const response = await axios.post(`https://${this.host}/paapi5/getitems`,payload, {
-        headers: headers,
-        timeout: 10000,
-      });
+      const response = await axios.post(
+        `https://${this.host}/paapi5/getitems`,
+        payload,
+        {
+          headers: headers,
+          timeout: 10000,
+        }
+      );
 
       console.log("📥 Response Status:", response.status);
       console.log("📥 Raw Response:", response.data);
@@ -268,184 +270,189 @@ class AmazonPAAPI {
     }
   }
 
+  transformProductData(item) {
+    const itemInfo = item.ItemInfo || {};
+    const offers = item.Offers || {};
+    const images = item.Images || {};
 
-transformProductData(item) {
-  const itemInfo = item.ItemInfo || {};
-  const offers = item.Offers || {};
-  const images = item.Images || {};
+    console.log("🧾 Amazon Raw Item Sample:", JSON.stringify(item, null, 2));
 
-  console.log("🧾 Amazon Raw Item Sample:", JSON.stringify(item, null, 2));
+    // Extract price
+    let price = null;
+    let listPrice = null;
+    let discount = null;
 
-  // Extract price
-  let price = null;
-  let listPrice = null;
-  let discount = null;
-
-  if (offers.Listings && offers.Listings[0] && offers.Listings[0].Price) {
-    const listingPrice = offers.Listings[0].Price;
-    price = {
-      amount: listingPrice.Amount || 0,
-      currency: listingPrice.Currency || "USD",
-      displayAmount: listingPrice.DisplayAmount || "$0.00",
-    };
-
-    // Extract original price (SavingBasis) - ADD THIS
-   const listing = offers.Listings[0];
-
-if (listing.SavingBasis) {
-  const savingBasis = listing.SavingBasis;
-  listPrice = {
-    amount: savingBasis.Amount || 0,
-    currency: savingBasis.Currency || "USD",
-    displayAmount: savingBasis.DisplayAmount || "$0.00",
-  };
-} else if (listing.AmountSaved && listing.Price) {
-  // Derive original price manually
-  const original = listing.Price.Amount + listing.AmountSaved.Amount;
-  listPrice = {
-    amount: original,
-    currency: listing.Price.Currency || "USD",
-    displayAmount: `$${original.toFixed(2)}`,
-  };
-}
-
-    // Calculate discount if both prices are available - ADD THIS
-    if (price && listPrice && listPrice.amount > price.amount) {
-      const discountAmount = listPrice.amount - price.amount;
-      const discountPercentage = Math.round((discountAmount / listPrice.amount) * 100);
-      
-      discount = {
-        amount: discountAmount,
-        currency: price.currency,
-        displayAmount: `-${discountPercentage}%`,
-        percentage: discountPercentage
+    if (offers.Listings && offers.Listings[0] && offers.Listings[0].Price) {
+      const listingPrice = offers.Listings[0].Price;
+      price = {
+        amount: listingPrice.Amount || 0,
+        currency: listingPrice.Currency || "USD",
+        displayAmount: listingPrice.DisplayAmount || "$0.00",
       };
-    } else {
-      // No discount - set listPrice same as price
-      listPrice = price;
+
+      // Extract original price (SavingBasis) - ADD THIS
+      const listing = offers.Listings[0];
+
+      if (listing.SavingBasis) {
+        const savingBasis = listing.SavingBasis;
+        listPrice = {
+          amount: savingBasis.Amount || 0,
+          currency: savingBasis.Currency || "USD",
+          displayAmount: savingBasis.DisplayAmount || "$0.00",
+        };
+      } else if (listing.AmountSaved && listing.Price) {
+        // Derive original price manually
+        const original = listing.Price.Amount + listing.AmountSaved.Amount;
+        listPrice = {
+          amount: original,
+          currency: listing.Price.Currency || "USD",
+          displayAmount: `$${original.toFixed(2)}`,
+        };
+      }
+
+      // Calculate discount if both prices are available - ADD THIS
+      if (price && listPrice && listPrice.amount > price.amount) {
+        const discountAmount = listPrice.amount - price.amount;
+        const discountPercentage = Math.round(
+          (discountAmount / listPrice.amount) * 100
+        );
+
+        discount = {
+          amount: discountAmount,
+          currency: price.currency,
+          displayAmount: `-${discountPercentage}%`,
+          percentage: discountPercentage,
+        };
+      } else {
+        // No discount - set listPrice same as price
+        listPrice = price;
+        discount = {
+          amount: 0,
+          currency: price.currency,
+          displayAmount: "0%",
+          percentage: 0,
+        };
+      }
+    }
+
+    // If no listing price but we have price, set listPrice = price - ADD THIS
+    if (price && !listPrice) {
+      listPrice = { ...price };
       discount = {
         amount: 0,
         currency: price.currency,
         displayAmount: "0%",
-        percentage: 0
+        percentage: 0,
       };
     }
-  }
 
-  // If no listing price but we have price, set listPrice = price - ADD THIS
-  if (price && !listPrice) {
-    listPrice = { ...price };
-    discount = {
-      amount: 0,
-      currency: price.currency,
-      displayAmount: "0%",
-      percentage: 0
-    };
-  }
-
-  // Extract images
-  const productImages = [];
-  if (images.Primary) {
-    if (images.Primary.Large) {
-      productImages.push({
-        url: images.Primary.Large.URL,
-        variant: "MAIN",
-        height: images.Primary.Large.Height,
-        width: images.Primary.Large.Width,
-      });
-    } else if (images.Primary.Medium) {
-      productImages.push({
-        url: images.Primary.Medium.URL,
-        variant: "MAIN", 
-        height: images.Primary.Medium.Height,
-        width: images.Primary.Medium.Width,
-      });
-    }
-  }
-
-  // Variant images (sub-images)
-  if (images.Variants && images.Variants.length > 0) {
-    images.Variants.forEach((variant, index) => {
-      if (variant.Medium) {
+    // Extract images
+    const productImages = [];
+    if (images.Primary) {
+      if (images.Primary.Large) {
         productImages.push({
-          url: variant.Medium.URL,
-          variant: "SUB",
-          height: variant.Medium.Height,
-          width: variant.Medium.Width,
-          caption: `View ${index + 1}`
+          url: images.Primary.Large.URL,
+          variant: "MAIN",
+          height: images.Primary.Large.Height,
+          width: images.Primary.Large.Width,
         });
-      } else if (variant.Small) {
+      } else if (images.Primary.Medium) {
         productImages.push({
-          url: variant.Small.URL,
-          variant: "SUB",
-          height: variant.Small.Height, 
-          width: variant.Small.Width,
-          caption: `View ${index + 1}`
+          url: images.Primary.Medium.URL,
+          variant: "MAIN",
+          height: images.Primary.Medium.Height,
+          width: images.Primary.Medium.Width,
         });
       }
-    });
-  }
+    }
 
-  // If no variant images but we have multiple primary sizes, use them as sub-images
-  if (productImages.length === 1 && images.Primary) {
-    if (images.Primary.Medium && images.Primary.Small) {
-      productImages.push({
-        url: images.Primary.Medium.URL,
-        variant: "SUB",
-        height: images.Primary.Medium.Height,
-        width: images.Primary.Medium.Width,
+    // Variant images (sub-images)
+    if (images.Variants && images.Variants.length > 0) {
+      images.Variants.forEach((variant, index) => {
+        if (variant.Medium) {
+          productImages.push({
+            url: variant.Medium.URL,
+            variant: "SUB",
+            height: variant.Medium.Height,
+            width: variant.Medium.Width,
+            caption: `View ${index + 1}`,
+          });
+        } else if (variant.Small) {
+          productImages.push({
+            url: variant.Small.URL,
+            variant: "SUB",
+            height: variant.Small.Height,
+            width: variant.Small.Width,
+            caption: `View ${index + 1}`,
+          });
+        }
       });
     }
-  }
 
-  // Extract features
-  const features = itemInfo.Features
-    ? itemInfo.Features.DisplayValues || []
-    : [];
+    // If no variant images but we have multiple primary sizes, use them as sub-images
+    if (productImages.length === 1 && images.Primary) {
+      if (images.Primary.Medium && images.Primary.Small) {
+        productImages.push({
+          url: images.Primary.Medium.URL,
+          variant: "SUB",
+          height: images.Primary.Medium.Height,
+          width: images.Primary.Medium.Width,
+        });
+      }
+    }
 
-  return {
-    asin: item.ASIN ? item.ASIN.toUpperCase() : "UNKNOWN_ASIN",
-    title: itemInfo.Title ? itemInfo.Title.DisplayValue : "No Title Available",
-    images: productImages,
-    price: price,
-    listPrice: listPrice,
-    discount: discount,
-    offers: {
-      totalOffers: offers.Summaries ? offers.Summaries[0]?.OfferCount || 0 : 0,
-      lowestPrice:
-        offers.Summaries?.[0]?.LowestPrice
+    // Extract features
+    const features = itemInfo.Features
+      ? itemInfo.Features.DisplayValues || []
+      : [];
+
+    return {
+      asin: item.ASIN ? item.ASIN.toUpperCase() : "UNKNOWN_ASIN",
+      title: itemInfo.Title
+        ? itemInfo.Title.DisplayValue
+        : "No Title Available",
+      images: productImages,
+      price: price,
+      listPrice: listPrice,
+      discount: discount,
+      offers: {
+        totalOffers: offers.Summaries
+          ? offers.Summaries[0]?.OfferCount || 0
+          : 0,
+        lowestPrice: offers.Summaries?.[0]?.LowestPrice
           ? {
               amount: offers.Summaries[0].LowestPrice.Amount || 0,
-              currency:
-                offers.Summaries[0].LowestPrice.Currency || "USD",
+              currency: offers.Summaries[0].LowestPrice.Currency || "USD",
               displayAmount:
                 offers.Summaries[0].LowestPrice.DisplayAmount || "$0.00",
             }
           : null,
-    },
-    brand: itemInfo.ByLineInfo
-      ? itemInfo.ByLineInfo.Brand?.DisplayValue || "Unknown Brand"
-      : "Unknown Brand",
-    availability: "In Stock",
-    description: itemInfo.Features
-      ? features.join(". ")
-      : "No description available",
-    details: {
+      },
       brand: itemInfo.ByLineInfo
         ? itemInfo.ByLineInfo.Brand?.DisplayValue || "Unknown Brand"
         : "Unknown Brand",
-      manufacturer: itemInfo.ByLineInfo
-        ? itemInfo.ByLineInfo.Manufacturer?.DisplayValue || "Unknown Manufacturer"
-        : "Unknown Manufacturer",
-    },
-    features: {
-      feature: features,
-    },
-    affiliateUrl: `https://www.amazon.com/dp/${item.ASIN}?tag=${this.partnerTag}`,
-    lastUpdated: new Date(),
-    isActive: true,
-  };
-}
+      availability: "In Stock",
+      description: itemInfo.Features
+        ? features.join(". ")
+        : "No description available",
+      details: {
+        brand: itemInfo.ByLineInfo
+          ? itemInfo.ByLineInfo.Brand?.DisplayValue || "Unknown Brand"
+          : "Unknown Brand",
+        manufacturer: itemInfo.ByLineInfo
+          ? itemInfo.ByLineInfo.Manufacturer?.DisplayValue ||
+            "Unknown Manufacturer"
+          : "Unknown Manufacturer",
+      },
+      features: {
+        feature: features,
+      },
+      isFullReview: false,
+      affiliateUrl: `https://www.amazon.com/dp/${item.ASIN}?tag=${this.partnerTag}`,
+      lastUpdated: new Date(),
+      isActive: true,
+    };
+  }
 }
 
 module.exports = AmazonPAAPI;
