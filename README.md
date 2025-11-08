@@ -1,3 +1,4 @@
+Live link: https://www.api.bestbuyersview.com/
 pickhub-amazon/controllers/authController.js (login & getMe)
 pickhub-amazon/middleware/auth.js (authenticateAdmin)
 pickhub-amazon/routes/api.js (route /api/auth/login)
