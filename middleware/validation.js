@@ -15,10 +15,10 @@ const productValidation = {
         .max(10)
         .required(),
 
-      // Add category fields
-      mainCategory: Joi.string().max(100).allow(""),
-      subCategory: Joi.string().max(100).allow(""),
-      subSubCategory: Joi.string().max(100).allow(""),
+      // Add category fields (optional)
+      mainCategory: Joi.string().max(100).allow("").default(""),
+      subCategory: Joi.string().max(100).allow("").default(""),
+      subSubCategory: Joi.string().max(100).allow("").default(""),
 
       // Add SEO fields
       seo: Joi.object({
@@ -43,18 +43,18 @@ const productValidation = {
   validateProductUpdate: (req, res, next) => {
     const schema = Joi.object({
       // Basic Information
-      title: Joi.string().min(1).max(500),
-      brand: Joi.string().max(100),
-      mainCategory: Joi.string().max(100),
-      subCategory: Joi.string().max(100),
-      subSubCategory: Joi.string().max(100),
+      title: Joi.string().min(1).max(500).allow(""),
+      brand: Joi.string().max(100).allow(""),
+      mainCategory: Joi.string().max(100).allow(""),
+      subCategory: Joi.string().max(100).allow(""),
+      subSubCategory: Joi.string().max(100).allow(""),
 
       labels: Joi.array().items(Joi.string()).default([]),
       // Images
       images: Joi.array().items(
         Joi.object({
-          url: Joi.string().uri(),
-          variant: Joi.string(),
+          url: Joi.string().uri().allow(""),
+          variant: Joi.string().allow(""),
           height: Joi.number(),
           width: Joi.number(),
         })
@@ -63,18 +63,18 @@ const productValidation = {
       // Pricing
       price: Joi.object({
         amount: Joi.number().min(0),
-        currency: Joi.string(),
-        displayAmount: Joi.string(),
+        currency: Joi.string().allow(""),
+        displayAmount: Joi.string().allow(""),
       }),
       listPrice: Joi.object({
         amount: Joi.number().min(0),
-        currency: Joi.string(),
-        displayAmount: Joi.string(),
+        currency: Joi.string().allow(""),
+        displayAmount: Joi.string().allow(""),
       }),
       discount: Joi.object({
         amount: Joi.number().min(0),
-        currency: Joi.string(),
-        displayAmount: Joi.string(),
+        currency: Joi.string().allow(""),
+        displayAmount: Joi.string().allow(""),
         percentage: Joi.number().min(0).max(100),
       }),
 
@@ -92,24 +92,24 @@ const productValidation = {
       styles: Joi.array().items(Joi.string()),
       specifications: Joi.array().items(
         Joi.object({
-          key: Joi.string(),
-          value: Joi.string(),
+          key: Joi.string().allow(""),
+          value: Joi.string().allow(""),
         })
       ),
       customReviews: Joi.array().items(
         Joi.object({
-          author: Joi.string(),
+          author: Joi.string().allow(""),
           rating: Joi.number().min(0).max(5),
-          title: Joi.string(),
-          content: Joi.string(),
+          title: Joi.string().allow(""),
+          content: Joi.string().allow(""),
           date: Joi.date(),
         })
       ),
 
       // SEO
       seo: Joi.object({
-        title: Joi.string().max(60),
-        description: Joi.string().max(160),
+        title: Joi.string().max(60).allow(""),
+        description: Joi.string().max(160).allow(""),
         keywords: Joi.array().items(Joi.string()),
       }),
 
@@ -122,23 +122,23 @@ const productValidation = {
       ),
 
       // Content
-      description: Joi.string(),
-      descriptionTitle: Joi.string(),
-      introduction: Joi.string(),
+      description: Joi.string().allow(""),
+      descriptionTitle: Joi.string().allow(""),
+      introduction: Joi.string().allow(""),
       factorsToConsider: Joi.array().items(Joi.string()),
       mostImportantFactors: Joi.object({
-        heading: Joi.string(),
-        text: Joi.string(),
+        heading: Joi.string().allow(""),
+        text: Joi.string().allow(""),
       }),
       commonQuestions: Joi.array().items(
         Joi.object({
-          question: Joi.string(),
-          answer: Joi.string(),
+          question: Joi.string().allow(""),
+          answer: Joi.string().allow(""),
         })
       ),
       conclusion: Joi.object({
-        heading: Joi.string(),
-        text: Joi.string(),
+        heading: Joi.string().allow(""),
+        text: Joi.string().allow(""),
       }),
 
       // Affiliate & Status
