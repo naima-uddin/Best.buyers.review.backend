@@ -199,20 +199,22 @@ const productController = {
       const updateData = req.body;
 
       console.log("🔍 Backend received update data:", updateData);
-      console.log("🔍 Backend received anchorTags:", updateData.anchorTags);
+      console.log("🔍 Backend received specifications:", updateData.specifications);
 
-      // HARD UPDATE - directly updates the document in MongoDB
+      // Use $set to explicitly replace array fields instead of merging
       const product = await Product.findOneAndUpdate(
         { asin: asin.toUpperCase() },
         {
-          ...updateData,
-          lastUpdated: new Date(),
+          $set: {
+            ...updateData,
+            lastUpdated: new Date(),
+          }
         },
         { new: true, runValidators: true }
       );
 
       console.log("💾 Backend saved product:", product);
-      console.log("💾 Backend saved anchorTags:", product.anchorTags);
+      console.log("💾 Backend saved specifications:", product.specifications);
 
       if (!product) {
         return res.status(404).json({
