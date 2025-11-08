@@ -7,7 +7,7 @@ const userController = require("../controllers/userController");
 const categoryController = require("../controllers/categoryController");
 const keywordController = require("../controllers/keywordController");
 
-const { upload, handleMulterError} = require("../middleware/upload");
+const { upload, handleMulterError } = require("../middleware/upload");
 const {
   productValidation,
   userValidation,
@@ -85,7 +85,7 @@ router.post(
   productValidation.validateASINs,
   productController.addProducts
 );
-router.put(
+router.patch(
   "/products/:asin",
   productValidation.validateProductUpdate,
   productController.updateProduct
