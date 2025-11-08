@@ -57,7 +57,9 @@ const productValidation = {
           variant: Joi.string().allow(""),
           height: Joi.number(),
           width: Joi.number(),
-        })
+          caption: Joi.string().allow(""),
+          altText: Joi.string().allow(""),
+        }).unknown(true)
       ),
 
       // Pricing
@@ -94,7 +96,7 @@ const productValidation = {
         Joi.object({
           key: Joi.string().allow(""),
           value: Joi.string().allow(""),
-        })
+        }).unknown(true)
       ),
       customReviews: Joi.array().items(
         Joi.object({
@@ -103,7 +105,7 @@ const productValidation = {
           title: Joi.string().allow(""),
           content: Joi.string().allow(""),
           date: Joi.date(),
-        })
+        }).unknown(true)
       ),
 
       // SEO
@@ -118,7 +120,7 @@ const productValidation = {
           word: Joi.string().required(),
           link: Joi.string().required(),
           isExternal: Joi.boolean().default(false),
-        })
+        }).unknown(true)
       ),
 
       // Content
@@ -134,7 +136,7 @@ const productValidation = {
         Joi.object({
           question: Joi.string().allow(""),
           answer: Joi.string().allow(""),
-        })
+        }).unknown(true)
       ),
       conclusion: Joi.object({
         heading: Joi.string().allow(""),
