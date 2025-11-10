@@ -149,6 +149,10 @@ const productSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
+    isCoupon: {
+      type: Boolean,
+      default: false,
+    },
 
     // Status
     availability: {

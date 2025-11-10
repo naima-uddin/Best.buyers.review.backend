@@ -147,6 +147,7 @@ const productValidation = {
       affiliateUrl: Joi.string().uri(),
       isFullReview: Joi.boolean(),
       isFeatured: Joi.boolean(),
+      isCoupon: Joi.boolean(),
       availability: Joi.string().valid(
         "In Stock",
         "Out of Stock",

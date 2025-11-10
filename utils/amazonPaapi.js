@@ -448,6 +448,7 @@ class AmazonPAAPI {
         feature: features,
       },
       isFullReview: false,
+      isCoupon: false,
       affiliateUrl: `https://www.amazon.com/dp/${item.ASIN}?tag=${this.partnerTag}`,
       lastUpdated: new Date(),
       isActive: true,
