@@ -192,49 +192,59 @@ const productController = {
     }
   },
 
-  // Update product
-  updateProduct: async (req, res) => {
-    try {
-      const { asin } = req.params;
-      const updateData = req.body;
+// Update product
+updateProduct: async (req, res) => {
+  try {
+    const { asin } = req.params;
+    const updateData = req.body;
 
-      console.log("🔍 Backend received update data:", updateData);
-      console.log("🔍 Backend received specifications:", updateData.specifications);
+    console.log("🔍 Backend received update data:", Object.keys(updateData));
+    console.log("🔍 Specifications received:", updateData.specifications?.length);
+    console.log("🔍 Anchor tags received:", updateData.anchorTags?.length);
 
-      // Use $set to explicitly replace array fields instead of merging
-      const product = await Product.findOneAndUpdate(
-        { asin: asin.toUpperCase() },
-        {
-          $set: {
-            ...updateData,
-            lastUpdated: new Date(),
-          }
-        },
-        { new: true, runValidators: true }
-      );
-
-      console.log("💾 Backend saved product:", product);
-      console.log("💾 Backend saved specifications:", product.specifications);
-
-      if (!product) {
-        return res.status(404).json({
-          success: false,
-          message: "Product not found",
-        });
+    // Use $set to update all fields at once
+    const updateObject = {
+      $set: {
+        ...updateData,
+        lastUpdated: new Date(),
       }
+    };
 
-      res.json({
-        success: true,
-        message: "Product updated successfully",
-        data: product,
-      });
-    } catch (error) {
-      res.status(500).json({
+    const product = await Product.findOneAndUpdate(
+      { asin: asin.toUpperCase() },
+      updateObject,
+      { 
+        new: true, 
+        runValidators: true,
+        // This ensures empty arrays/objects are saved properly
+        setDefaultsOnInsert: true
+      }
+    );
+
+    if (!product) {
+      return res.status(404).json({
         success: false,
-        message: error.message,
+        message: "Product not found",
       });
     }
-  },
+
+    console.log("✅ Product updated successfully");
+    console.log("✅ Saved specifications:", product.specifications?.length);
+    console.log("✅ Saved anchor tags:", product.anchorTags?.length);
+
+    res.json({
+      success: true,
+      message: "Product updated successfully",
+      data: product,
+    });
+  } catch (error) {
+    console.error("❌ Update error:", error);
+    res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+},
 
   // Refresh product data from Amazon
   refreshProduct: async (req, res) => {
