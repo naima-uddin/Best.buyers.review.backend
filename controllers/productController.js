@@ -118,7 +118,7 @@ const productController = {
   // Get all products with pagination
   getAllProducts: async (req, res) => {
     try {
-      const { mainCategory, subCategory, subSubCategory } = req.query;
+      const { mainCategory, subCategory, subSubCategory, sort } = req.query;
 
       const page = parseInt(req.query.page) || 1;
       const limit = parseInt(req.query.limit) || 10;
@@ -126,20 +126,35 @@ const productController = {
 
       let filter = { isActive: true };
 
-      // ✅ Filter logic priority: level 3 > level 2 > level 1
-      if (subSubCategory) {
-        filter.subSubCategory = subSubCategory;
-      } else if (subCategory) {
-        filter.subCategory = subCategory;
-      } else if (mainCategory) {
-        filter.mainCategory = mainCategory;
+      if (subSubCategory) filter.subSubCategory = subSubCategory;
+      else if (subCategory) filter.subCategory = subCategory;
+      else if (mainCategory) filter.mainCategory = mainCategory;
+
+      // ✅ Sorting Logic
+      let sortOption = { lastUpdated: -1 }; // default sort
+      switch (sort) {
+        case "rating":
+          sortOption = { "customRating.rating": -1 };
+          break;
+        case "reviews":
+          sortOption = { "customRating.reviewCount": -1 };
+          break;
+        case "price_low":
+          sortOption = { "price.amount": 1 };
+          break;
+        case "price_high":
+          sortOption = { "price.amount": -1 };
+          break;
+        case "popularity":
+          sortOption = { isFeatured: -1 };
+          break;
       }
 
       const products = await Product.find(filter)
         .populate("mainCategory", "name")
         .populate("subCategory", "name")
         .populate("subSubCategory", "name")
-        .sort({ lastUpdated: -1 })
+        .sort(sortOption)
         .skip(skip)
         .limit(limit)
         .select("-__v");
@@ -165,6 +180,7 @@ const productController = {
       });
     }
   },
+
 
   // Get single product by ASIN
   getProduct: async (req, res) => {
