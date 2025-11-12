@@ -208,6 +208,30 @@ const productController = {
     }
   },
 
+  // Get featured products
+  getFeaturedProducts: async (req, res) => {
+    try {
+      const featuredProducts = await Product.find({
+        isActive: true,
+        isFeatured: true,
+      })
+        .sort({ lastUpdated: -1 }) // show newest first
+        .limit(12)
+        .select("asin title images price listPrice discount customRating affiliateUrl labels");
+
+      res.json({
+        success: true,
+        data: featuredProducts,
+      });
+    } catch (error) {
+      res.status(500).json({
+        success: false,
+        message: error.message,
+      });
+    }
+  },
+
+
 // Update product
 updateProduct: async (req, res) => {
   try {

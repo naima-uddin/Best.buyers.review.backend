@@ -37,6 +37,7 @@ router.get("/products/:asin", productController.getProduct);
 router.get("/keywords", keywordController.getAllKeywords);
 // Categories (Public)
 router.get("/categories", categoryController.getAllCategories);
+router.get("/featured", productController.getFeaturedProducts);
 
 // =============== CATEGORY MANAGEMENT ===============
 // ✅ Create category (auto-detects main/sub/sub-sub)
@@ -99,7 +100,6 @@ router.patch(
   "/products/:asin/soft-delete",
   productController.softDeleteProduct
 );
-
 // =============== USER MANAGEMENT (ADMIN) ===============
 router.get("/users", requireAdmin, userController.getAllUsers);
 router.post(
