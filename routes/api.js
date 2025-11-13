@@ -32,6 +32,7 @@ router.use((req, res, next) => {
 router.post("/auth/login", authController.login);
 // Products
 router.get("/products", productController.getAllProducts);
+router.get("/products/:id", productController.getProductById);
 router.get("/products/:asin", productController.getProduct);
 // Keywords
 router.get("/keywords", keywordController.getAllKeywords);
@@ -85,6 +86,11 @@ router.post(
   "/products/add",
   productValidation.validateASINs,
   productController.addProducts
+);
+router.patch(
+  "/products/:id",
+  productValidation.validateProductUpdate,
+  productController.updateProductById
 );
 router.patch(
   "/products/:asin",
