@@ -1,5 +1,5 @@
 const Category = require("../models/Category");
-const path=require("path");
+const path = require("path");
 
 // ✅ Create Category
 exports.createCategory = async (req, res) => {
@@ -21,7 +21,12 @@ exports.createCategory = async (req, res) => {
     // No image for level 3
     if (level === 3) image = null;
 
-    const category = await Category.create({ name, parent: parent || null, level, image });
+    const category = await Category.create({
+      name,
+      parent: parent || null,
+      level,
+      image,
+    });
     res.status(201).json(category);
   } catch (err) {
     res.status(500).json({ message: err.message });
@@ -29,23 +34,59 @@ exports.createCategory = async (req, res) => {
 };
 
 // ✅ Get all categories (build tree)
+// exports.getAllCategories = async (req, res) => {
+//   try {
+//     const all = await Category.find().lean();
+
+//     const buildTree = (parent = null) =>
+//       all
+//         .filter((c) =>
+//           parent === null
+//             ? c.parent === null
+//             : String(c.parent) === String(parent)
+//         )
+//         .map((c) => ({
+//           ...c,
+//           children: buildTree(c._id),
+//         }));
+
+//     res.json(buildTree());
+//   } catch (err) {
+//     res.status(500).json({ message: err.message });
+//   }
+// };
+
+// ✅ Get all categories (optimized tree building) by Raian:
 exports.getAllCategories = async (req, res) => {
   try {
-    const all = await Category.find().lean();
+    const categories = await Category.find()
+      .select("name image parent level") // Only fetch needed fields
+      .lean();
 
-    const buildTree = (parent = null) =>
-      all
-        .filter((c) =>
-          parent === null
-            ? c.parent === null
-            : String(c.parent) === String(parent)
-        )
-        .map((c) => ({
-          ...c,
-          children: buildTree(c._id),
-        }));
+    // Build tree in a single pass - O(n) instead of O(n²)
+    const categoryMap = new Map();
+    const tree = [];
 
-    res.json(buildTree());
+    // First pass: Create map of all categories
+    categories.forEach((cat) => {
+      categoryMap.set(String(cat._id), { ...cat, children: [] });
+    });
+
+    // Second pass: Build tree structure
+    categories.forEach((cat) => {
+      const node = categoryMap.get(String(cat._id));
+
+      if (cat.parent === null) {
+        tree.push(node); // Root level categories
+      } else {
+        const parentNode = categoryMap.get(String(cat.parent));
+        if (parentNode) {
+          parentNode.children.push(node);
+        }
+      }
+    });
+
+    res.json(tree);
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
@@ -60,7 +101,9 @@ exports.updateCategory = async (req, res) => {
     const updateData = { name };
     if (req.file) updateData.image = `/uploads/${req.file.filename}`;
 
-    const category = await Category.findByIdAndUpdate(id, updateData, { new: true });
+    const category = await Category.findByIdAndUpdate(id, updateData, {
+      new: true,
+    });
     if (!category) return res.status(404).json({ message: "Not found" });
 
     res.json(category);
