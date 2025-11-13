@@ -36,29 +36,9 @@ router.get("/products/:id", productController.getProductById);
 router.get("/products/:asin", productController.getProduct);
 // Keywords
 router.get("/keywords", keywordController.getAllKeywords);
-// Categories (Public)
+// Categories (Public - Read Only)
 router.get("/categories", categoryController.getAllCategories);
 router.get("/featured", productController.getFeaturedProducts);
-
-// =============== CATEGORY MANAGEMENT ===============
-// ✅ Create category (auto-detects main/sub/sub-sub)
-router.post(
-  "/categories",
-  upload.single("image"),
-  handleMulterError,
-  categoryController.createCategory
-);
-
-// ✅ Update category (optional image)
-router.put(
-  "/categories/:id",
-  upload.single("image"),
-  handleMulterError,
-  categoryController.updateCategory
-);
-
-// ✅ Delete category (and all nested subcategories)
-router.delete("/categories/:id", categoryController.deleteCategory);
 
 // =============== ADMIN PROTECTED ROUTES ===============
 router.use(authenticateAdmin);
@@ -106,6 +86,27 @@ router.patch(
   "/products/:asin/soft-delete",
   productController.softDeleteProduct
 );
+
+// =============== CATEGORY MANAGEMENT (ADMIN) ===============
+// ✅ Create category (auto-detects main/sub/sub-sub)
+router.post(
+  "/categories",
+  upload.single("image"),
+  handleMulterError,
+  categoryController.createCategory
+);
+
+// ✅ Update category (optional image)
+router.put(
+  "/categories/:id",
+  upload.single("image"),
+  handleMulterError,
+  categoryController.updateCategory
+);
+
+// ✅ Delete category (and all nested subcategories)
+router.delete("/categories/:id", categoryController.deleteCategory);
+
 // =============== USER MANAGEMENT (ADMIN) ===============
 router.get("/users", requireAdmin, userController.getAllUsers);
 router.post(
