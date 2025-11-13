@@ -225,6 +225,7 @@ class AmazonPAAPI {
         }
       );
 
+      console.log("📥 Response:", response);
       console.log("📥 Response Status:", response.status);
       console.log("📥 Raw Response:", response.data);
 

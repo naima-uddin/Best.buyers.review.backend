@@ -181,7 +181,6 @@ const productController = {
     }
   },
 
-
   // Get single product by ASIN
   getProduct: async (req, res) => {
     try {
@@ -217,7 +216,9 @@ const productController = {
       })
         .sort({ lastUpdated: -1 }) // show newest first
         .limit(12)
-        .select("asin title images price listPrice discount customRating affiliateUrl labels");
+        .select(
+          "asin title images price listPrice discount customRating affiliateUrl labels"
+        );
 
       res.json({
         success: true,
@@ -231,60 +232,62 @@ const productController = {
     }
   },
 
+  // Update product
+  updateProduct: async (req, res) => {
+    try {
+      const { asin } = req.params;
+      const updateData = req.body;
 
-// Update product
-updateProduct: async (req, res) => {
-  try {
-    const { asin } = req.params;
-    const updateData = req.body;
+      console.log("🔍 Backend received update data:", Object.keys(updateData));
+      console.log(
+        "🔍 Specifications received:",
+        updateData.specifications?.length
+      );
+      console.log("🔍 Anchor tags received:", updateData.anchorTags?.length);
 
-    console.log("🔍 Backend received update data:", Object.keys(updateData));
-    console.log("🔍 Specifications received:", updateData.specifications?.length);
-    console.log("🔍 Anchor tags received:", updateData.anchorTags?.length);
+      // Use $set to update all fields at once
+      const updateObject = {
+        $set: {
+          ...updateData,
+          lastUpdated: new Date(),
+        },
+      };
 
-    // Use $set to update all fields at once
-    const updateObject = {
-      $set: {
-        ...updateData,
-        lastUpdated: new Date(),
+      const product = await Product.findOneAndUpdate(
+        { asin: asin.toUpperCase() },
+        updateObject,
+        {
+          new: true,
+          runValidators: true,
+          // This ensures empty arrays/objects are saved properly
+          setDefaultsOnInsert: true,
+        }
+      );
+
+      if (!product) {
+        return res.status(404).json({
+          success: false,
+          message: "Product not found",
+        });
       }
-    };
 
-    const product = await Product.findOneAndUpdate(
-      { asin: asin.toUpperCase() },
-      updateObject,
-      { 
-        new: true, 
-        runValidators: true,
-        // This ensures empty arrays/objects are saved properly
-        setDefaultsOnInsert: true
-      }
-    );
+      console.log("✅ Product updated successfully");
+      console.log("✅ Saved specifications:", product.specifications?.length);
+      console.log("✅ Saved anchor tags:", product.anchorTags?.length);
 
-    if (!product) {
-      return res.status(404).json({
+      res.json({
+        success: true,
+        message: "Product updated successfully",
+        data: product,
+      });
+    } catch (error) {
+      console.error("❌ Update error:", error);
+      res.status(500).json({
         success: false,
-        message: "Product not found",
+        message: error.message,
       });
     }
-
-    console.log("✅ Product updated successfully");
-    console.log("✅ Saved specifications:", product.specifications?.length);
-    console.log("✅ Saved anchor tags:", product.anchorTags?.length);
-
-    res.json({
-      success: true,
-      message: "Product updated successfully",
-      data: product,
-    });
-  } catch (error) {
-    console.error("❌ Update error:", error);
-    res.status(500).json({
-      success: false,
-      message: error.message,
-    });
-  }
-},
+  },
 
   // Refresh product data from Amazon
   refreshProduct: async (req, res) => {
