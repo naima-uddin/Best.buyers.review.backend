@@ -20,6 +20,11 @@ class AmazonPAAPI {
     this.secretKey = process.env.AMAZON_SECRET_KEY;
     this.partnerTag = process.env.AMAZON_PARTNER_TAG;
 
+    // Check mock mode with detailed logging
+    const mockEnvValue = process.env.AMAZON_USE_MOCK;
+    console.log("🔍 AMAZON_USE_MOCK env value:", mockEnvValue, "Type:", typeof mockEnvValue);
+    this.useMockData = mockEnvValue === 'true' || mockEnvValue === true;
+
     // Auto-detect region based on partner tag
     this.host = this.detectHostFromTag();
     this.region = this.detectRegionFromTag();
@@ -29,7 +34,15 @@ class AmazonPAAPI {
       partnerTag: this.partnerTag,
       host: this.host,
       region: this.region,
+      mockMode: this.useMockData,
+      mockEnvRaw: mockEnvValue
     });
+
+    if (this.useMockData) {
+      console.warn("⚠️⚠️⚠️ MOCK MODE ENABLED - Using fake product data for development ⚠️⚠️⚠️");
+    } else {
+      console.log("📡 REAL API MODE - Will attempt to fetch from Amazon PA-API");
+    }
   }
 
   detectHostFromTag() {
@@ -72,6 +85,83 @@ class AmazonPAAPI {
     if (host.includes(".fr")) return "www.amazon.fr";
     if (host.includes(".co.jp")) return "www.amazon.co.jp";
     return "www.amazon.com"; // Default to US
+  }
+
+  // Generate mock product data for development/testing
+  generateMockProduct(asin) {
+    const prices = [29.99, 49.99, 99.99, 149.99, 199.99];
+    const brands = ["Samsung", "Apple", "Sony", "LG", "Dell", "HP", "Logitech"];
+    const categories = ["Electronics", "Computers", "Home & Kitchen", "Sports", "Books"];
+
+    const randomPrice = prices[Math.floor(Math.random() * prices.length)];
+    const randomBrand = brands[Math.floor(Math.random() * brands.length)];
+    const randomCategory = categories[Math.floor(Math.random() * categories.length)];
+    const discount = Math.floor(Math.random() * 30) + 10; // 10-40% discount
+    const listPrice = randomPrice * (1 + discount / 100);
+
+    return {
+      asin: asin.toUpperCase(),
+      title: `${randomBrand} Sample Product - ${randomCategory} - ASIN: ${asin}`,
+      images: [
+        {
+          url: `https://via.placeholder.com/500x500.png?text=${asin}`,
+          variant: "MAIN",
+          height: 500,
+          width: 500
+        },
+        {
+          url: `https://via.placeholder.com/500x500.png?text=${asin}-2`,
+          variant: "SUB",
+          height: 500,
+          width: 500,
+          caption: "View 1"
+        }
+      ],
+      price: {
+        amount: randomPrice,
+        currency: "USD",
+        displayAmount: `$${randomPrice.toFixed(2)}`
+      },
+      listPrice: {
+        amount: listPrice,
+        currency: "USD",
+        displayAmount: `$${listPrice.toFixed(2)}`
+      },
+      discount: {
+        amount: listPrice - randomPrice,
+        currency: "USD",
+        displayAmount: `-${discount}%`,
+        percentage: discount
+      },
+      offers: {
+        totalOffers: 1,
+        lowestPrice: {
+          amount: randomPrice,
+          currency: "USD",
+          displayAmount: `$${randomPrice.toFixed(2)}`
+        }
+      },
+      brand: randomBrand,
+      availability: "In Stock",
+      description: `This is a mock product for development purposes. ASIN: ${asin}. High-quality ${randomCategory.toLowerCase()} product from ${randomBrand}.`,
+      details: {
+        brand: randomBrand,
+        manufacturer: randomBrand
+      },
+      features: {
+        feature: [
+          "Mock feature 1: High quality construction",
+          "Mock feature 2: Easy to use interface",
+          "Mock feature 3: Durable and long-lasting",
+          "Mock feature 4: Great customer reviews"
+        ]
+      },
+      isFullReview: false,
+      isCoupon: false,
+      affiliateUrl: `https://www.amazon.com/dp/${asin}?tag=${this.partnerTag}`,
+      lastUpdated: new Date(),
+      isActive: true
+    };
   }
 
   // Generate signature key
@@ -175,7 +265,28 @@ class AmazonPAAPI {
 
   async getItems(asins) {
     try {
+      // Ensure asins is an array
+      if (!Array.isArray(asins)) {
+        asins = [asins];
+      }
+
+      // Validate ASINs format
+      asins = asins.map(asin => {
+        if (typeof asin === 'string') {
+          return asin.trim().toUpperCase();
+        }
+        return String(asin).trim().toUpperCase();
+      });
+
       console.log("🔍 Fetching products for ASINs:", asins);
+      console.log("🔍 Mock Mode Status:", this.useMockData);
+
+      // If mock mode is enabled, return fake data immediately
+      if (this.useMockData) {
+        console.warn("⚠️⚠️⚠️ MOCK MODE: Returning fake product data for ASINs:", asins);
+        return asins.map(asin => this.generateMockProduct(asin));
+      }
+
       console.log("🔑 Using Partner Tag:", this.partnerTag);
       console.log("🌍 Marketplace:", this.getMarketplace());
 
@@ -267,6 +378,36 @@ class AmazonPAAPI {
       );
     } catch (error) {
       console.error("💥 PAAPI Fetch Error:", error);
+
+      // Enhanced error logging for 403 errors
+      if (error.response) {
+        console.error("📛 HTTP Status:", error.response.status);
+        console.error("📛 Response Data:", JSON.stringify(error.response.data, null, 2));
+
+        if (error.response.status === 403) {
+          const errorData = error.response.data;
+
+          if (errorData && errorData.Errors && errorData.Errors.length > 0) {
+            const amazonError = errorData.Errors[0];
+            console.error("📛 Amazon Error Code:", amazonError.Code);
+            console.error("📛 Amazon Error Message:", amazonError.Message);
+
+            throw new Error(
+              `Amazon PA-API Error (403 Forbidden)\n\n` +
+              `Error Code: ${amazonError.Code}\n` +
+              `Message: ${amazonError.Message}\n\n` +
+              `Common Solutions:\n` +
+              `1. Verify 3 QUALIFYING sales (from affiliate link clicks) in last 180 days\n` +
+              `2. Wait 24-48 hours after 3rd sale for approval\n` +
+              `3. Check that Access Key matches Partner Tag in Amazon Associates dashboard\n` +
+              `4. Verify PA-API is enabled in your Amazon Associates account\n` +
+              `5. Ensure credentials are for the correct marketplace (US/UK/etc)\n\n` +
+              `For now, set AMAZON_USE_MOCK=true in .env to continue development.`
+            );
+          }
+        }
+      }
+
       throw new Error(`Amazon API error: ${error.message}`);
     }
   }
