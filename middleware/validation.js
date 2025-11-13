@@ -155,7 +155,9 @@ const productValidation = {
         "Available"
       ),
       isActive: Joi.boolean(),
-    }).min(1); // At least one field must be provided
+    })
+      .min(1) // At least one field must be provided
+      .unknown(true); // Allow MongoDB fields like _id, __v, createdAt, updatedAt
 
     const { error } = schema.validate(req.body);
     if (error) {
