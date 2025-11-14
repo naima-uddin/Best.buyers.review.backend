@@ -16,9 +16,9 @@ const productValidation = {
         .required(),
 
       // Add category fields (optional)
-      mainCategory: Joi.string().max(100).allow("").default(""),
-      subCategory: Joi.string().max(100).allow("").default(""),
-      subSubCategory: Joi.string().max(100).allow("").default(""),
+      mainCategory: Joi.string().max(100).allow("", null).default(""),
+      subCategory: Joi.string().max(100).allow("", null).default(""),
+      subSubCategory: Joi.string().max(100).allow("", null).default(""),
 
       // Add SEO fields
       seo: Joi.object({
@@ -45,9 +45,9 @@ const productValidation = {
       // Basic Information
       title: Joi.string().min(1).max(500).allow(""),
       brand: Joi.string().max(100).allow(""),
-      mainCategory: Joi.string().max(100).allow(""),
-      subCategory: Joi.string().max(100).allow(""),
-      subSubCategory: Joi.string().max(100).allow(""),
+      mainCategory: Joi.string().max(100).allow("", null),
+      subCategory: Joi.string().max(100).allow("", null),
+      subSubCategory: Joi.string().max(100).allow("", null),
 
       labels: Joi.array().items(Joi.string()).default([]),
       // Images
@@ -155,7 +155,9 @@ const productValidation = {
         "Available"
       ),
       isActive: Joi.boolean(),
-    }).min(1); // At least one field must be provided
+    })
+      .min(1) // At least one field must be provided
+      .unknown(true); // Allow MongoDB fields like _id, __v, createdAt, updatedAt
 
     const { error } = schema.validate(req.body);
     if (error) {

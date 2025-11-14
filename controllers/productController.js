@@ -181,13 +181,41 @@ const productController = {
     }
   },
 
-
   // Get single product by ASIN
   getProduct: async (req, res) => {
     try {
       const { asin } = req.params;
 
       const product = await Product.findOne({ asin: asin.toUpperCase() });
+
+      if (!product) {
+        return res.status(404).json({
+          success: false,
+          message: "Product not found",
+        });
+      }
+
+      res.json({
+        success: true,
+        data: product,
+      });
+    } catch (error) {
+      res.status(500).json({
+        success: false,
+        message: error.message,
+      });
+    }
+  },
+
+  // Get single product by MongoDB ID
+  getProductById: async (req, res) => {
+    try {
+      const { id } = req.params;
+
+      const product = await Product.findById(id)
+        .populate("mainCategory", "name")
+        .populate("subCategory", "name")
+        .populate("subSubCategory", "name");
 
       if (!product) {
         return res.status(404).json({
@@ -217,7 +245,9 @@ const productController = {
       })
         .sort({ lastUpdated: -1 }) // show newest first
         .limit(12)
-        .select("asin title images price listPrice discount customRating affiliateUrl labels");
+        .select(
+          "asin title images price listPrice discount customRating affiliateUrl labels"
+        );
 
       res.json({
         success: true,
@@ -231,60 +261,180 @@ const productController = {
     }
   },
 
+  // Update product by ASIN
+  updateProduct: async (req, res) => {
+    try {
+      const { asin } = req.params;
+      const updateData = req.body;
 
-// Update product
-updateProduct: async (req, res) => {
-  try {
-    const { asin } = req.params;
-    const updateData = req.body;
+      console.log("🔍 Backend received update data:", Object.keys(updateData));
+      console.log(
+        "🔍 Specifications received:",
+        updateData.specifications?.length
+      );
+      console.log("🔍 Anchor tags received:", updateData.anchorTags?.length);
 
-    console.log("🔍 Backend received update data:", Object.keys(updateData));
-    console.log("🔍 Specifications received:", updateData.specifications?.length);
-    console.log("🔍 Anchor tags received:", updateData.anchorTags?.length);
+      // Clean up empty strings and null values for ObjectId fields
+      const cleanedData = { ...updateData };
 
-    // Use $set to update all fields at once
-    const updateObject = {
-      $set: {
-        ...updateData,
-        lastUpdated: new Date(),
+      // Convert empty strings to null for category fields (ObjectId references)
+      const categoryFields = ['mainCategory', 'subCategory', 'subSubCategory'];
+      categoryFields.forEach(field => {
+        if (field in cleanedData) {
+          // If empty string, null, or undefined, set to null to remove the field
+          if (!cleanedData[field] || cleanedData[field] === '' || cleanedData[field] === 'null') {
+            cleanedData[field] = null;
+          }
+        }
+      });
+
+      // Build update operations
+      const updateObject = {};
+      const unsetFields = {};
+
+      // Separate null values (to unset) from regular values (to set)
+      Object.keys(cleanedData).forEach(key => {
+        if (cleanedData[key] === null) {
+          unsetFields[key] = '';
+        } else {
+          if (!updateObject.$set) updateObject.$set = {};
+          updateObject.$set[key] = cleanedData[key];
+        }
+      });
+
+      // Always update lastUpdated
+      if (!updateObject.$set) updateObject.$set = {};
+      updateObject.$set.lastUpdated = new Date();
+
+      // Add $unset if there are fields to remove
+      if (Object.keys(unsetFields).length > 0) {
+        updateObject.$unset = unsetFields;
       }
-    };
 
-    const product = await Product.findOneAndUpdate(
-      { asin: asin.toUpperCase() },
-      updateObject,
-      { 
-        new: true, 
-        runValidators: true,
-        // This ensures empty arrays/objects are saved properly
-        setDefaultsOnInsert: true
+      console.log("🔄 Update object:", JSON.stringify(updateObject, null, 2));
+
+      const product = await Product.findOneAndUpdate(
+        { asin: asin.toUpperCase() },
+        updateObject,
+        {
+          new: true,
+          runValidators: true,
+          // This ensures empty arrays/objects are saved properly
+          setDefaultsOnInsert: true,
+        }
+      );
+
+      if (!product) {
+        return res.status(404).json({
+          success: false,
+          message: "Product not found",
+        });
       }
-    );
 
-    if (!product) {
-      return res.status(404).json({
+      console.log("✅ Product updated successfully");
+      console.log("✅ Saved specifications:", product.specifications?.length);
+      console.log("✅ Saved anchor tags:", product.anchorTags?.length);
+
+      res.json({
+        success: true,
+        message: "Product updated successfully",
+        data: product,
+      });
+    } catch (error) {
+      console.error("❌ Update error:", error);
+      res.status(500).json({
         success: false,
-        message: "Product not found",
+        message: error.message,
       });
     }
+  },
 
-    console.log("✅ Product updated successfully");
-    console.log("✅ Saved specifications:", product.specifications?.length);
-    console.log("✅ Saved anchor tags:", product.anchorTags?.length);
+  // Update product by MongoDB ID
+  updateProductById: async (req, res) => {
+    try {
+      const { id } = req.params;
+      const updateData = req.body;
 
-    res.json({
-      success: true,
-      message: "Product updated successfully",
-      data: product,
-    });
-  } catch (error) {
-    console.error("❌ Update error:", error);
-    res.status(500).json({
-      success: false,
-      message: error.message,
-    });
-  }
-},
+      console.log("🔍 Backend received update data:", Object.keys(updateData));
+      console.log(
+        "🔍 Specifications received:",
+        updateData.specifications?.length
+      );
+      console.log("🔍 Anchor tags received:", updateData.anchorTags?.length);
+
+      // Clean up empty strings and null values for ObjectId fields
+      const cleanedData = { ...updateData };
+
+      // Convert empty strings to null for category fields (ObjectId references)
+      const categoryFields = ['mainCategory', 'subCategory', 'subSubCategory'];
+      categoryFields.forEach(field => {
+        if (field in cleanedData) {
+          // If empty string, null, or undefined, set to null to remove the field
+          if (!cleanedData[field] || cleanedData[field] === '' || cleanedData[field] === 'null') {
+            cleanedData[field] = null;
+          }
+        }
+      });
+
+      // Build update operations
+      const updateObject = {};
+      const unsetFields = {};
+
+      // Separate null values (to unset) from regular values (to set)
+      Object.keys(cleanedData).forEach(key => {
+        if (cleanedData[key] === null) {
+          unsetFields[key] = '';
+        } else {
+          if (!updateObject.$set) updateObject.$set = {};
+          updateObject.$set[key] = cleanedData[key];
+        }
+      });
+
+      // Always update lastUpdated
+      if (!updateObject.$set) updateObject.$set = {};
+      updateObject.$set.lastUpdated = new Date();
+
+      // Add $unset if there are fields to remove
+      if (Object.keys(unsetFields).length > 0) {
+        updateObject.$unset = unsetFields;
+      }
+
+      console.log("🔄 Update object:", JSON.stringify(updateObject, null, 2));
+
+      const product = await Product.findByIdAndUpdate(
+        id,
+        updateObject,
+        {
+          new: true,
+          runValidators: true,
+          setDefaultsOnInsert: true,
+        }
+      );
+
+      if (!product) {
+        return res.status(404).json({
+          success: false,
+          message: "Product not found",
+        });
+      }
+
+      console.log("✅ Product updated successfully");
+      console.log("✅ Saved specifications:", product.specifications?.length);
+      console.log("✅ Saved anchor tags:", product.anchorTags?.length);
+
+      res.json({
+        success: true,
+        message: "Product updated successfully",
+        data: product,
+      });
+    } catch (error) {
+      console.error("❌ Update error:", error);
+      res.status(500).json({
+        success: false,
+        message: error.message,
+      });
+    }
+  },
 
   // Refresh product data from Amazon
   refreshProduct: async (req, res) => {
