@@ -1,5 +1,5 @@
-const blog=require('../models/Blog');
 
+import Blog from "../models/Blog.js";
 export const createBlog = async (req, res) => {
   try {
     const blogData = req.body;
@@ -103,4 +103,10 @@ export const deleteBlog = async (req, res) => {
   }
 };
 
-module.exports=blogController;
+export default {
+  createBlog,
+  getAllBlogs,
+  getBlogBySlug,
+  updateBlog,
+  deleteBlog,
+};
