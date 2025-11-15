@@ -6,6 +6,7 @@ const authController = require("../controllers/authController");
 const userController = require("../controllers/userController");
 const categoryController = require("../controllers/categoryController");
 const keywordController = require("../controllers/keywordController");
+const blogController = require("../controllers/blogController");
 
 const { upload, handleMulterError } = require("../middleware/upload");
 const {
@@ -39,6 +40,14 @@ router.get("/keywords", keywordController.getAllKeywords);
 // Categories (Public - Read Only)
 router.get("/categories", categoryController.getAllCategories);
 router.get("/featured", productController.getFeaturedProducts);
+
+// Blogs (Public - Read Only)
+router.get("/blog",blogController.getAllBlogs);
+router.get("/blog/:slug",blogController.getBlogBySlug);
+
+
+
+
 
 // =============== ADMIN PROTECTED ROUTES ===============
 router.use(authenticateAdmin);
@@ -122,6 +131,11 @@ router.put(
   userController.updateUser
 );
 router.delete("/users/:id", requireAdmin, userController.deleteUser);
+
+// =============== BLOG MANAGEMENT ===============
+router.post("/blog", blogController.createBlog);
+router.patch("/blog/:slug", blogController.updateBlog);
+router.delete("/blog/:slug", blogController.deleteBlog);
 
 // =============== KEYWORDS (ADMIN) ===============
 router.post("/keywords", keywordController.createKeyword);
