@@ -1,79 +1,87 @@
 import mongoose from "mongoose";
 
-const stepSchema = new mongoose.Schema({
-  title: { type: String },
-  description: { type: String },
-  image: { type: String }, 
+// Content Block Schema (editor-style blocks: paragraph, quote, image, list, etc.)
+const contentBlockSchema = new mongoose.Schema({
+  type: { type: String, required: true }, // e.g. paragraph, quote, list, image
+  data: {
+    text: [
+      {
+        type: { type: String, default: "text" },
+        value: { type: String },
+      },
+    ],
+    items: [{ type: String }], // used for bullet/number list
+  },
 });
 
+// Featured Image Schema
+const imageSchema = new mongoose.Schema({
+  url: { type: String },
+  public_id: { type: String },
+});
+
+// Author Schema
+const authorSchema = new mongoose.Schema({
+  name: { type: String, required: true },
+  avatar: { type: String },
+  bio: { type: String },
+});
+
+// SEO Schema
+const seoSchema = new mongoose.Schema({
+  title: { type: String },
+  description: { type: String },
+  keywords: [{ type: String }],
+  canonicalUrl: { type: String },
+});
+
+// Sponsor Schema
+const sponsorSchema = new mongoose.Schema({
+  name: { type: String },
+  link: { type: String },
+  logo: { type: String },
+});
+
+// Main Blog Schema
 const blogSchema = new mongoose.Schema(
   {
-    title: {
-      type: String,
-      required: true,
-      trim: true,
-    },
-    slug: {
-      type: String,
-      required: true,
-      unique: true,
-      index: true,
-    },
-    authorName: {
-      type: String,
-      required: true,
-      trim: true,
-    },
-    coverImage: {
-      type: String, // store image URL or path
-      required: false,
-    },
-    shortDescription: {
-      type: String,
-      required: true,
-      minlength: 20,
-      maxlength: 300,
-    },
-    content: {
-      type: String, // Full article body (HTML or markdown)
-      required: true,
-    },
-    steps: [stepSchema], // dynamic array of steps (title, desc, img)
-    images: [
-      {
-        type: String, // extra blog images
-      },
-    ],
-    category: {
-      type: String,
-      required: true,
-    },
-    tags: [
-      {
-        type: String,
-      },
-    ],
+    title: { type: String, required: true, trim: true },
+    slug: { type: String, required: true, unique: true, index: true },
 
-    // SEO Fields
-    seo: {
-      metaTitle: { type: String },
-      metaDescription: { type: String },
-      keywords: [{ type: String }],
-    },
+    // description = long form, excerpt = short summary
+    description: { type: String },
+    excerpt: { type: String },
 
-    status: {
-      type: String,
-      enum: ["draft", "published"],
-      default: "draft",
-    },
+    author: authorSchema,
 
-    views: {
-      type: Number,
-      default: 0,
-    },
+    categories: [{ type: String }],
+    tags: [{ type: String }],
+
+    content: [contentBlockSchema], // dynamic block based content
+
+    featuredImage: imageSchema,
+    contentImages: [imageSchema], // uploads stored here
+
+    seo: seoSchema,
+    sponsor: sponsorSchema,
+
+    isFeatured: { type: Boolean, default: false },
+
+    published: { type: Boolean, default: false },
+    datePublished: { type: Date, default: null },
+    dateModified: { type: Date, default: null },
   },
   { timestamps: true }
 );
+
+// Auto update dateModified
+blogSchema.pre("save", function (next) {
+  this.dateModified = new Date();
+  if (this.published && !this.datePublished) {
+    this.datePublished = new Date();
+  }
+  next();
+});
 
 const Blog = mongoose.model("Blog", blogSchema);
 export default Blog;
