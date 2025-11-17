@@ -34,9 +34,9 @@ export const createBlog = async (req, res) => {
   try {
     let blogData = { ...req.body };
 
-    // Parse JSON fields if they exist
+    // Parse JSON fields if they exist as strings
     const parseField = (field) => {
-      if (blogData[field]) {
+      if (blogData[field] && typeof blogData[field] === 'string') {
         try {
           blogData[field] = JSON.parse(blogData[field]);
         } catch (err) {
@@ -46,6 +46,14 @@ export const createBlog = async (req, res) => {
     };
 
     ["author", "seo", "tags", "categories", "content"].forEach(parseField);
+
+    // Handle featured image URL if provided
+    if (blogData.featuredImageUrl && !blogData.featuredImage) {
+      blogData.featuredImage = {
+        url: blogData.featuredImageUrl,
+        alt: blogData.title || ""
+      };
+    }
 
     // Auto-generate slug if not provided
     if (!blogData.slug && blogData.title) {
@@ -57,14 +65,6 @@ export const createBlog = async (req, res) => {
       blogData.categories = normalizeCategories(blogData.categories);
     }
 
-    // Featured image (if only URL provided)
-    if (blogData.featuredImageUrl) {
-      blogData.featuredImage = {
-        url: blogData.featuredImageUrl,
-        alt: blogData.title || ""
-      };
-    }
-
     const newBlog = await Blog.create(blogData);
 
     res.status(201).json({
@@ -74,7 +74,7 @@ export const createBlog = async (req, res) => {
     });
 
   } catch (error) {
-    console.log(error);
+    console.log("Create Blog Error:", error);
     res.status(500).json({ success: false, message: error.message });
   }
 };
