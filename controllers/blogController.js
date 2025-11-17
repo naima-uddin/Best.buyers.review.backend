@@ -20,27 +20,49 @@ const normalizeCategories = (cats) => {
   if (!cats) return [];
   return cats.map((c) => {
     if (typeof c === "string") {
-      return { _id: new mongoose.Types.ObjectId(c) };
+      return { name: c, slug: c.toLowerCase().replace(/\s+/g, "-") };
     }
-    return c;
+    return c; // keep original object
   });
 };
+
 
 // ---------------------------------------------------------
 // CREATE BLOG
 // ---------------------------------------------------------
 export const createBlog = async (req, res) => {
   try {
-    const blogData = req.body;
+    let blogData = { ...req.body };
 
-    // Auto slug
+    // Parse JSON fields if they exist
+    const parseField = (field) => {
+      if (blogData[field]) {
+        try {
+          blogData[field] = JSON.parse(blogData[field]);
+        } catch (err) {
+          console.log(`Failed to parse field: ${field}`, err);
+        }
+      }
+    };
+
+    ["author", "seo", "tags", "categories", "content"].forEach(parseField);
+
+    // Auto-generate slug if not provided
     if (!blogData.slug && blogData.title) {
       blogData.slug = generateSlug(blogData.title);
     }
 
-    // Fix categories format
+    // Normalize categories
     if (blogData.categories) {
       blogData.categories = normalizeCategories(blogData.categories);
+    }
+
+    // Featured image (if only URL provided)
+    if (blogData.featuredImageUrl) {
+      blogData.featuredImage = {
+        url: blogData.featuredImageUrl,
+        alt: blogData.title || ""
+      };
     }
 
     const newBlog = await Blog.create(blogData);
@@ -50,10 +72,13 @@ export const createBlog = async (req, res) => {
       message: "Blog created successfully",
       data: newBlog,
     });
+
   } catch (error) {
+    console.log(error);
     res.status(500).json({ success: false, message: error.message });
   }
 };
+
 
 // ---------------------------------------------------------
 // GET ALL BLOGS
