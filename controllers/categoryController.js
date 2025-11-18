@@ -131,3 +131,46 @@ exports.deleteCategory = async (req, res) => {
     res.status(500).json({ message: err.message });
   }
 };
+
+const slugify = (text) =>
+  text
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/(^-|-$)/g, "");
+
+exports.searchCategory = async (req, res) => {
+  try {
+    const query = req.query.query?.toLowerCase() || "";
+
+    const categories = await Category.find().populate("parent");
+
+    const results = categories
+      .filter((cat) =>
+        cat.name.toLowerCase().includes(query)
+      )
+      .map((cat) => {
+        // If category has parent -> this is a subcategory
+        if (cat.parent) {
+          return {
+            mainCategorySlug: slugify(cat.parent.name),
+            subCategorySlug: slugify(cat.name),
+            mainCategoryName: cat.parent.name,
+            subCategoryName: cat.name,
+          };
+        }
+
+        // If category is level 1 main category
+        return {
+          mainCategorySlug: slugify(cat.name),
+          subCategorySlug: "",
+          mainCategoryName: cat.name,
+          subCategoryName: "",
+        };
+      });
+
+    res.json({ success: true, results });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};

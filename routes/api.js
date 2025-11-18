@@ -41,6 +41,8 @@ router.get("/keywords", keywordController.getAllKeywords);
 // Categories (Public - Read Only)
 router.get("/categories", categoryController.getAllCategories);
 router.get("/featured", productController.getFeaturedProducts);
+router.get("/category/search", categoryController.searchCategory);
+
 
 // Blogs (Public - Read Only)
 router.get("/blog",blogController.getAllBlogs);
