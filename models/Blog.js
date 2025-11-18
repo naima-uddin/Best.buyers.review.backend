@@ -40,6 +40,15 @@ const authorSchema = new mongoose.Schema({
   bio: { type: String },
 });
 
+const anchorTagSchema = new mongoose.Schema({
+  word: String,
+  link: String,
+  isExternal: {
+    type: Boolean,
+    default: false,
+  },
+});
+
 // -------------------------------
 // SEO Schema
 // -------------------------------
@@ -91,6 +100,8 @@ const blogSchema = new mongoose.Schema(
     featuredImage: imageSchema,
 
     contentImages: [imageSchema],
+
+    anchorTags: [anchorTagSchema],
 
     seo: seoSchema,
     sponsor: sponsorSchema,
