@@ -79,3 +79,17 @@ AMAZON_REGION=us-east-1
 NODE_ENV=development
 JWT_SECRET=05471dffe0cf4ef492995f171654cb2ac7534e35583d872208754ff0080f4439ddf059f85c58101ae8b3a
 d3a21e50ccb05335bcef5a0fb8aebeea88ed4c79477"
+
+
+
+
+
+<!-- MONGO_URI=mongodb+srv://best_buyers_review:best_buyers_review25@cluster0.nuqehb5.mongodb.net/best-buyers-review?retryWrites=true&w=majority&appName=Cluster0
+AMAZON_ACCESS_KEY=AKPAPY45C61762060183
+AMAZON_SECRET_KEY=IVFlc7umSIDnuubMbKiwOQGSNkhxcXKhYT9bqXhQ
+AMAZON_PARTNER_TAG=bestbuyersview-20
+AMAZON_HOST=webservices.amazon.com
+AMAZON_REGION=us-east-1
+NODE_ENV=development
+JWT_SECRET=05471dffe0cf4ef492995f171654cb2ac7534e35583d872208754ff0080f4439ddf059f85c58101ae8b3a
+d3a21e50ccb05335bcef5a0fb8aebeea88ed4c79477 -->
