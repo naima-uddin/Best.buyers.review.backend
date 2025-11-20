@@ -1,4 +1,5 @@
 const Product = require("../models/Product");
+const Category = require("../models/Category");
 const amazonController = require("./amazonController");
 
 const productController = {
@@ -118,7 +119,24 @@ const productController = {
   // Get all products with pagination
   getAllProducts: async (req, res) => {
     try {
-      const { mainCategory, subCategory, subSubCategory, sort } = req.query;
+      const {
+        mainCategory,
+        subCategory,
+        subSubCategory,
+        mainCategoryName,
+        subCategoryName,
+        subSubCategoryName,
+        sort,
+      } = req.query;
+
+      console.log("🔍 getAllProducts - Query params:", {
+        mainCategoryName,
+        subCategoryName,
+        subSubCategoryName,
+        sort,
+        page: req.query.page,
+        limit: req.query.limit,
+      });
 
       const page = parseInt(req.query.page) || 1;
       const limit = parseInt(req.query.limit) || 10;
@@ -126,9 +144,76 @@ const productController = {
 
       let filter = { isActive: true };
 
-      if (subSubCategory) filter.subSubCategory = subSubCategory;
-      else if (subCategory) filter.subCategory = subCategory;
-      else if (mainCategory) filter.mainCategory = mainCategory;
+      // Handle category filtering by name (new approach)
+      if (mainCategoryName || subCategoryName || subSubCategoryName) {
+        // Find main category by name
+        if (mainCategoryName) {
+          const mainCat = await Category.findOne({
+            name: mainCategoryName,
+            level: 1,
+          });
+
+          console.log(`🔍 Main category '${mainCategoryName}' lookup:`, mainCat ? `Found (ID: ${mainCat._id})` : "NOT FOUND");
+
+          if (!mainCat) {
+            return res.json({
+              success: false,
+              message: `Main category '${mainCategoryName}' not found`,
+              data: { products: [], pagination: { page, limit, total: 0, pages: 0 } },
+            });
+          }
+
+          filter.mainCategory = mainCat._id;
+
+          // Find sub category by name (must belong to the main category)
+          if (subCategoryName) {
+            const subCat = await Category.findOne({
+              name: subCategoryName,
+              level: 2,
+              parent: mainCat._id,
+            });
+
+            console.log(`🔍 Sub category '${subCategoryName}' lookup:`, subCat ? `Found (ID: ${subCat._id})` : "NOT FOUND");
+
+            if (!subCat) {
+              return res.json({
+                success: false,
+                message: `Sub category '${subCategoryName}' not found under '${mainCategoryName}'`,
+                data: { products: [], pagination: { page, limit, total: 0, pages: 0 } },
+              });
+            }
+
+            filter.subCategory = subCat._id;
+
+            // Find sub-sub category by name (must belong to the sub category)
+            if (subSubCategoryName) {
+              const subSubCat = await Category.findOne({
+                name: subSubCategoryName,
+                level: 3,
+                parent: subCat._id,
+              });
+
+              if (!subSubCat) {
+                return res.json({
+                  success: false,
+                  message: `Sub-sub category '${subSubCategoryName}' not found under '${subCategoryName}'`,
+                  data: { products: [], pagination: { page, limit, total: 0, pages: 0 } },
+                });
+              }
+
+              filter.subSubCategory = subSubCat._id;
+            }
+          }
+        }
+      }
+      // Fallback to old approach with IDs (for backward compatibility)
+      else if (mainCategory || subCategory || subSubCategory) {
+        if (subSubCategory) filter.subSubCategory = subSubCategory;
+        else if (subCategory) filter.subCategory = subCategory;
+        else if (mainCategory) filter.mainCategory = mainCategory;
+      }
+
+      console.log("🔍 Final filter being applied:", filter);
 
       // ✅ Sorting Logic
       let sortOption = { lastUpdated: -1 }; // default sort
@@ -160,6 +245,11 @@ const productController = {
         .select("-__v");
 
       const total = await Product.countDocuments(filter);
+
+      console.log(`✅ Found ${products.length} products (total: ${total})`);
+      if (products.length > 0) {
+        console.log(`✅ First product: ${products[0].title} (main: ${products[0].mainCategory?.name}, sub: ${products[0].subCategory?.name})`);
+      }
 
       res.json({
         success: true,
@@ -212,23 +302,29 @@ const productController = {
     try {
       const { id } = req.params;
 
+      console.log('🔍 getProductById - Looking for product with ID:', id);
+
       const product = await Product.findById(id)
         .populate("mainCategory", "name")
         .populate("subCategory", "name")
         .populate("subSubCategory", "name");
 
       if (!product) {
+        console.log('❌ getProductById - Product not found with ID:', id);
         return res.status(404).json({
           success: false,
           message: "Product not found",
         });
       }
 
+      console.log('✅ getProductById - Found product:', product.title);
+
       res.json({
         success: true,
         data: product,
       });
     } catch (error) {
+      console.error('❌ getProductById - Error:', error.message);
       res.status(500).json({
         success: false,
         message: error.message,

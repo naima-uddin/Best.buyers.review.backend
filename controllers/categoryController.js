@@ -92,6 +92,38 @@ exports.getAllCategories = async (req, res) => {
   }
 };
 
+// Search category by name (for debugging)
+exports.searchCategory = async (req, res) => {
+  try {
+    const { mainName, subName } = req.query;
+    console.log('🔍 Category search - mainName:', mainName, 'subName:', subName);
+
+    const result = { main: null, sub: null };
+
+    if (mainName) {
+      result.main = await Category.findOne({ name: mainName, level: 1 });
+      console.log('🔍 Main category found:', result.main ? `Yes (${result.main._id})` : 'No');
+    }
+
+    if (subName && result.main) {
+      result.sub = await Category.findOne({
+        name: subName,
+        level: 2,
+        parent: result.main._id
+      });
+      console.log('🔍 Sub category found:', result.sub ? `Yes (${result.sub._id})` : 'No');
+    }
+
+    res.json({
+      success: true,
+      data: result,
+      message: `Main: ${result.main ? 'Found' : 'Not found'}, Sub: ${result.sub ? 'Found' : 'Not found'}`
+    });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
 // ✅ Update
 exports.updateCategory = async (req, res) => {
   try {
