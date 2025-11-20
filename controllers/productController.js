@@ -302,23 +302,29 @@ const productController = {
     try {
       const { id } = req.params;
 
+      console.log('🔍 getProductById - Looking for product with ID:', id);
+
       const product = await Product.findById(id)
         .populate("mainCategory", "name")
         .populate("subCategory", "name")
         .populate("subSubCategory", "name");
 
       if (!product) {
+        console.log('❌ getProductById - Product not found with ID:', id);
         return res.status(404).json({
           success: false,
           message: "Product not found",
         });
       }
 
+      console.log('✅ getProductById - Found product:', product.title);
+
       res.json({
         success: true,
         data: product,
       });
     } catch (error) {
+      console.error('❌ getProductById - Error:', error.message);
       res.status(500).json({
         success: false,
         message: error.message,
