@@ -31,14 +31,6 @@ const imageSchema = new mongoose.Schema({
   alt: { type: String }, // You have ALT inside contentImages
 });
 
-// -------------------------------
-// Author Schema
-// -------------------------------
-const authorSchema = new mongoose.Schema({
-  name: { type: String, required: true },
-  avatar: { type: String },
-  bio: { type: String },
-});
 
 const anchorTagSchema = new mongoose.Schema({
   word: String,
@@ -87,8 +79,6 @@ const blogSchema = new mongoose.Schema(
 
     description: { type: String },
     excerpt: { type: String },
-
-    author: authorSchema,
 
     // ⭐ Your JSON uses FULL OBJECTS for categories
     categories: [categoryRefSchema],
