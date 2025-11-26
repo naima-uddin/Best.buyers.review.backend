@@ -6,7 +6,6 @@ const authController = require("../controllers/authController");
 const userController = require("../controllers/userController");
 const categoryController = require("../controllers/categoryController");
 const keywordController = require("../controllers/keywordController");
-const blogController = require("../controllers/blogController").default;
 
 
 const { upload, handleMulterError } = require("../middleware/upload");
@@ -15,6 +14,7 @@ const {
   userValidation,
 } = require("../middleware/validation");
 const { authenticateAdmin, requireAdmin } = require("../middleware/auth");
+const { default: blogController } = require("../controllers/blogController");
 
 console.log("🔄 Loading API routes...");
 

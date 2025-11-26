@@ -43,9 +43,9 @@ app.use(
   })
 );
 
-// Body parsers
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+
+app.use(express.json({ limit: '50mb' })); // Increased from default ~100KB to 50MB
+app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
 // ✅ Serve uploaded images with CORP fix
 app.use(

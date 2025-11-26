@@ -32,6 +32,10 @@ const normalizeCategories = (cats) => {
 // ---------------------------------------------------------
 export const createBlog = async (req, res) => {
   try {
+    console.log("📥 Received blog creation request");
+    console.log("📦 Request body:", req.body);
+    console.log("📦 Request headers:", req.headers);
+
     let blogData = { ...req.body };
 
     // Parse JSON fields if they exist as strings
@@ -39,13 +43,14 @@ export const createBlog = async (req, res) => {
       if (blogData[field] && typeof blogData[field] === 'string') {
         try {
           blogData[field] = JSON.parse(blogData[field]);
+          console.log(`✅ Parsed field: ${field}`);
         } catch (err) {
-          console.log(`Failed to parse field: ${field}`, err);
+          console.log(`❌ Failed to parse field: ${field}`, err);
         }
       }
     };
 
-    ["author", "seo", "tags", "categories", "content"].forEach(parseField);
+    ["author", "seo", "tags", "categories", "content", "anchorTags"].forEach(parseField);
 
     // Handle featured image URL if provided
     if (blogData.featuredImageUrl && !blogData.featuredImage) {
@@ -58,6 +63,7 @@ export const createBlog = async (req, res) => {
     // Auto-generate slug if not provided
     if (!blogData.slug && blogData.title) {
       blogData.slug = generateSlug(blogData.title);
+      console.log(`✅ Generated slug: ${blogData.slug}`);
     }
 
     // Normalize categories
@@ -65,7 +71,10 @@ export const createBlog = async (req, res) => {
       blogData.categories = normalizeCategories(blogData.categories);
     }
 
+    console.log("📝 Final blog data before creation:", blogData);
+
     const newBlog = await Blog.create(blogData);
+    console.log("✅ Blog created successfully:", newBlog._id);
 
     res.status(201).json({
       success: true,
@@ -74,8 +83,14 @@ export const createBlog = async (req, res) => {
     });
 
   } catch (error) {
-    console.log("Create Blog Error:", error);
-    res.status(500).json({ success: false, message: error.message });
+    console.log("❌ Create Blog Error:", error);
+    console.log("❌ Error details:", error.message);
+    console.log("❌ Error stack:", error.stack);
+    res.status(500).json({ 
+      success: false, 
+      message: error.message,
+      details: "Check server logs for more information"
+    });
   }
 };
 
