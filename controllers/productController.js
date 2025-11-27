@@ -216,7 +216,7 @@ const productController = {
       console.log("🔍 Final filter being applied:", filter);
 
       // ✅ Sorting Logic
-      let sortOption = { lastUpdated: -1 }; // default sort
+      let sortOption = { createdAt: 1 }; // default sort
       switch (sort) {
         case "rating":
           sortOption = { "customRating.rating": -1 };
@@ -232,6 +232,9 @@ const productController = {
           break;
         case "popularity":
           sortOption = { isFeatured: -1 };
+          break;
+        case "newest":
+          sortOption = { createdAt: -1 }; // newest first
           break;
       }
 
