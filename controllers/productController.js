@@ -332,24 +332,99 @@ const productController = {
     }
   },
 
-  // Get featured products
-  getFeaturedProducts: async (req, res) => {
+  // Get products by specific labels with pagination (6 per page, 24 total)
+  getProductsByLabels: async (req, res) => {
     try {
-      const featuredProducts = await Product.find({
+      const { labels, page = 1, limit = 6, sort = "lastUpdated" } = req.query;
+      
+      if (!labels) {
+        return res.status(400).json({
+          success: false,
+          message: "Labels parameter is required",
+        });
+      }
+
+      const pageNum = parseInt(page);
+      const limitNum = parseInt(limit);
+      const skip = (pageNum - 1) * limitNum;
+
+      // Convert labels string to array
+      const labelsArray = Array.isArray(labels) ? labels : labels.split(',');
+
+      const filter = { 
         isActive: true,
-        isFeatured: true,
-      })
-        .sort({ lastUpdated: -1 }) // show newest first
-        .limit(12)
-        .select(
-          "asin title images price listPrice discount customRating affiliateUrl labels"
-        );
+        labels: { $in: labelsArray }
+      };
+
+      console.log(`🔍 Fetching products with labels: ${labelsArray.join(', ')}`, {
+        page: pageNum,
+        limit: limitNum,
+        skip: skip
+      });
+
+      // Sorting logic - always show newest first by default
+      let sortOption = { lastUpdated: -1 };
+      switch (sort) {
+        case "rating":
+          sortOption = { "customRating.rating": -1, lastUpdated: -1 };
+          break;
+        case "reviews":
+          sortOption = { "customRating.reviewCount": -1, lastUpdated: -1 };
+          break;
+        case "price_low":
+          sortOption = { "price.amount": 1, lastUpdated: -1 };
+          break;
+        case "price_high":
+          sortOption = { "price.amount": -1, lastUpdated: -1 };
+          break;
+        case "popularity":
+          sortOption = { isFeatured: -1, lastUpdated: -1 };
+          break;
+        default:
+          sortOption = { lastUpdated: -1 };
+      }
+
+      const [products, total] = await Promise.all([
+        Product.find(filter)
+          .populate("mainCategory", "name")
+          .populate("subCategory", "name")
+          .populate("subSubCategory", "name")
+          .sort(sortOption)
+          .skip(skip)
+          .limit(limitNum)
+          .select("asin title images price listPrice discount customRating affiliateUrl labels isFeatured lastUpdated"),
+        
+        Product.countDocuments(filter)
+      ]);
+
+      const totalPages = Math.ceil(total / limitNum);
+      // Limit to maximum 4 pages (24 products) per label
+      const effectiveTotalPages = Math.min(totalPages, 4);
+      const effectiveTotal = Math.min(total, 24);
+
+      console.log(`✅ Found ${products.length} products (showing ${effectiveTotal} out of ${total} total, pages: ${effectiveTotalPages})`);
 
       res.json({
         success: true,
-        data: featuredProducts,
+        data: {
+          products,
+          pagination: {
+            page: pageNum,
+            limit: limitNum,
+            total: effectiveTotal,
+            totalInDatabase: total,
+            pages: effectiveTotalPages,
+            hasNext: pageNum < effectiveTotalPages,
+            hasPrev: pageNum > 1
+          },
+          filter: {
+            labels: labelsArray,
+            sort: sort
+          }
+        },
       });
     } catch (error) {
+      console.error("❌ Get products by labels error:", error);
       res.status(500).json({
         success: false,
         message: error.message,
@@ -357,6 +432,88 @@ const productController = {
     }
   },
 
+// Get featured products with pagination (6 per page, 24 total)
+getFeaturedProducts: async (req, res) => {
+  try {
+    const { page = 1, limit = 6, sort = "lastUpdated" } = req.query;
+    
+    const pageNum = parseInt(page);
+    const limitNum = parseInt(limit);
+    const skip = (pageNum - 1) * limitNum;
+
+    const filter = { 
+      isActive: true,
+      isFeatured: true 
+    };
+
+    // Sorting logic
+    let sortOption = { lastUpdated: -1 };
+    switch (sort) {
+      case "rating":
+        sortOption = { "customRating.rating": -1, lastUpdated: -1 };
+        break;
+      case "reviews":
+        sortOption = { "customRating.reviewCount": -1, lastUpdated: -1 };
+        break;
+      case "price_low":
+        sortOption = { "price.amount": 1, lastUpdated: -1 };
+        break;
+      case "price_high":
+        sortOption = { "price.amount": -1, lastUpdated: -1 };
+        break;
+      default:
+        sortOption = { lastUpdated: -1 };
+    }
+
+    console.log(`🔍 Fetching featured products:`, {
+      page: pageNum,
+      limit: limitNum,
+      skip: skip
+    });
+
+    const [featuredProducts, total] = await Promise.all([
+      Product.find(filter)
+        .sort(sortOption)
+        .skip(skip)
+        .limit(limitNum)
+        .select("asin title images price listPrice discount customRating affiliateUrl labels isFeatured lastUpdated")
+        .populate("mainCategory", "name")
+        .populate("subCategory", "name")
+        .populate("subSubCategory", "name"),
+      
+      Product.countDocuments(filter)
+    ]);
+
+    const totalPages = Math.ceil(total / limitNum);
+    // Limit to maximum 4 pages (24 products)
+    const effectiveTotalPages = Math.min(totalPages, 4);
+    const effectiveTotal = Math.min(total, 24);
+
+    console.log(`✅ Found ${featuredProducts.length} featured products (showing ${effectiveTotal} out of ${total} total, pages: ${effectiveTotalPages})`);
+
+    res.json({
+      success: true,
+      data: {
+        products: featuredProducts,
+        pagination: {
+          page: pageNum,
+          limit: limitNum,
+          total: effectiveTotal,
+          totalInDatabase: total,
+          pages: effectiveTotalPages,
+          hasNext: pageNum < effectiveTotalPages,
+          hasPrev: pageNum > 1
+        }
+      },
+    });
+  } catch (error) {
+    console.error("❌ Get featured products error:", error);
+    res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+},
   // Update product by ASIN
   updateProduct: async (req, res) => {
     try {

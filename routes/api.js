@@ -48,7 +48,8 @@ router.get("/category/search", categoryController.searchCategory);
 router.get("/blog",blogController.getAllBlogs);
 router.get("/blog/:slug",blogController.getBlogBySlug);
 
-
+// Add this route to your product routes
+router.get("/labels", productController.getProductsByLabels);
 
 
 
