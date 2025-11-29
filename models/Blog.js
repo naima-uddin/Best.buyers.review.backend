@@ -118,5 +118,15 @@ blogSchema.pre("save", function (next) {
   next();
 });
 
+// Add after blogSchema definition, before export
+blogSchema.index({ createdAt: -1 });
+blogSchema.index({ published: 1, createdAt: -1 });
+blogSchema.index({ slug: 1 }, { unique: true });
+blogSchema.index({ isFeatured: 1 });
+
+blogSchema.virtual('contentLength').get(function() {
+  return this.content?.length || 0;
+});
+
 const Blog = mongoose.model("Blog", blogSchema);
 export default Blog;

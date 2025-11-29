@@ -100,7 +100,20 @@ export const createBlog = async (req, res) => {
 // ---------------------------------------------------------
 export const getAllBlogs = async (req, res) => {
   try {
-    const blogs = await Blog.find().sort({ createdAt: -1 });
+    // Only fetch necessary fields for list view (not full content)
+    const blogs = await Blog.find({ published: true })
+      .select('title slug excerpt description featuredImage categories tags isFeatured datePublished createdAt')
+      .sort({ createdAt: -1 })
+      .lean() // Convert to plain JS objects (5-10x faster)
+      .limit(100); // Limit results for faster queries
+    
+    // Set aggressive caching headers
+    res.set({
+      'Cache-Control': 'public, max-age=3600, s-maxage=3600',
+      'CDN-Cache-Control': 'public, max-age=7200',
+      'Surrogate-Control': 'max-age=3600'
+    });
+    
     res.status(200).json({ success: true, data: blogs });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
