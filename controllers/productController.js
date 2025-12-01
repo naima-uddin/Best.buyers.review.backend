@@ -75,9 +75,31 @@ const productController = {
       console.log("✅ Fetched products from Amazon:", amazonProducts.length);
 
       // 🧩 Step 6 — Attach category/SEO info
+      // If no category provided, use "Uncategorized"
+      let finalMainCategory = mainCategory;
+      
+if (!mainCategory && !subCategory && !subSubCategory) {
+  let uncategorized = await Category.findOne({ name: "Uncategorized", level: 1 });
+  
+  if (!uncategorized) {
+    console.log("📦 Creating 'Uncategorized' category...");
+    uncategorized = await Category.create({
+      name: "Uncategorized",
+      level: 1,
+      parent: null,
+      image: null
+    });
+    console.log("✅ 'Uncategorized' category created:", uncategorized._id);
+  } else {
+    console.log("✅ Found existing 'Uncategorized' category:", uncategorized._id);
+  }
+  
+  finalMainCategory = uncategorized._id; // ✅ Assign the ObjectId, not the name
+}
+      
       const productsWithCategories = amazonProducts.map((product) => ({
         ...product,
-        ...(mainCategory && { mainCategory }),
+        ...(finalMainCategory && { mainCategory: finalMainCategory }),
         ...(subCategory && { subCategory }),
         ...(subSubCategory && { subSubCategory }),
         ...(seo && { seo }),
@@ -163,7 +185,16 @@ const productController = {
             });
           }
 
-          filter.mainCategory = mainCat._id;
+          // Special handling for "Uncategorized" - show products with this category OR null mainCategory
+          if (mainCategoryName.toLowerCase() === "uncategorized") {
+            filter.$or = [
+              { mainCategory: mainCat._id },
+              { mainCategory: null },
+              { mainCategory: { $exists: false } }
+            ];
+          } else {
+            filter.mainCategory = mainCat._id;
+          }
 
           // Find sub category by name (must belong to the main category)
           if (subCategoryName) {
