@@ -74,7 +74,7 @@ const productController = {
 
       console.log("✅ Fetched products from Amazon:", amazonProducts.length);
 
-      // 🧩 Step 5.5 — Validate which ASINs were actually fetched
+      // 🧩 Step 5.5 — Validate which ASINs were actually fetched(some asin may not be available in the marketplace)
       const fetchedAsins = amazonProducts.map((p) => p.asin.toUpperCase());
       const failedAsins = newAsins.filter(
         (asin) => !fetchedAsins.includes(asin.toUpperCase())
@@ -96,24 +96,24 @@ const productController = {
       // If no category provided, use "Uncategorized"
       let finalMainCategory = mainCategory;
       
-if (!mainCategory && !subCategory && !subSubCategory) {
-  let uncategorized = await Category.findOne({ name: "Uncategorized", level: 1 });
-  
-  if (!uncategorized) {
-    console.log("📦 Creating 'Uncategorized' category...");
-    uncategorized = await Category.create({
-      name: "Uncategorized",
-      level: 1,
-      parent: null,
-      image: null
-    });
-    console.log("✅ 'Uncategorized' category created:", uncategorized._id);
-  } else {
-    console.log("✅ Found existing 'Uncategorized' category:", uncategorized._id);
-  }
-  
-  finalMainCategory = uncategorized._id; // ✅ Assign the ObjectId, not the name
-}
+      if (!mainCategory && !subCategory && !subSubCategory) {
+        let uncategorized = await Category.findOne({ name: "Uncategorized", level: 1 });
+        
+        if (!uncategorized) {
+          console.log("📦 Creating 'Uncategorized' category...");
+          uncategorized = await Category.create({
+            name: "Uncategorized",
+            level: 1,
+            parent: null,
+            image: null
+          });
+          console.log("✅ 'Uncategorized' category created:", uncategorized._id);
+        } else {
+          console.log("✅ Found existing 'Uncategorized' category:", uncategorized._id);
+        }
+        
+        finalMainCategory = uncategorized._id; // ✅ Assign the ObjectId, not the name
+      }
       
       const productsWithCategories = amazonProducts.map((product) => ({
         ...product,
