@@ -368,11 +368,27 @@ class AmazonPAAPI {
         throw new Error("No products found for the given ASINs");
       }
 
+      // Check for ItemsNotFound errors
+      const itemsNotFound = data.ItemsResult.ItemsNotFound || [];
+      if (itemsNotFound.length > 0) {
+        console.warn("⚠️ These ASINs were not found by Amazon:", itemsNotFound.join(", "));
+      }
+
+      const fetchedCount = data.ItemsResult.Items.length;
+      const requestedCount = asins.length;
+      
       console.log(
         "✅ Successfully fetched",
-        data.ItemsResult.Items.length,
-        "products"
+        fetchedCount,
+        "out of",
+        requestedCount,
+        "requested products"
       );
+
+      if (fetchedCount < requestedCount) {
+        console.warn(`⚠️ Warning: ${requestedCount - fetchedCount} ASIN(s) could not be fetched`);
+      }
+
       return data.ItemsResult.Items.map((item) =>
         this.transformProductData(item)
       );

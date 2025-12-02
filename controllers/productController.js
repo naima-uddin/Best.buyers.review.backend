@@ -74,6 +74,24 @@ const productController = {
 
       console.log("✅ Fetched products from Amazon:", amazonProducts.length);
 
+      // 🧩 Step 5.5 — Validate which ASINs were actually fetched
+      const fetchedAsins = amazonProducts.map((p) => p.asin.toUpperCase());
+      const failedAsins = newAsins.filter(
+        (asin) => !fetchedAsins.includes(asin.toUpperCase())
+      );
+
+      // If some ASINs failed to fetch, report them as errors BEFORE saving
+      if (failedAsins.length > 0) {
+        console.error("❌ Failed to fetch these ASINs:", failedAsins);
+        return res.status(400).json({
+          success: false,
+          message: `❌ Failed to fetch ${failedAsins.length} ASIN(s) from Amazon. These ASINs are invalid, don't exist, or are not available in your marketplace: ${failedAsins.join(", ")}. Please verify and remove them before trying again.`,
+          failedAsins: failedAsins,
+          requestedCount: newAsins.length,
+          fetchedCount: amazonProducts.length,
+        });
+      }
+
       // 🧩 Step 6 — Attach category/SEO info
       // If no category provided, use "Uncategorized"
       let finalMainCategory = mainCategory;
