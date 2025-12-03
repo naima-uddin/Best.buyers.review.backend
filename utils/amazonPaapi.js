@@ -45,6 +45,13 @@ class AmazonPAAPI {
     }
   }
 
+  // Helper function to upgrade image quality
+  upgradeImageUrl(url, targetSize = 500) {
+    if (!url) return url;
+    // Replace size parameters like _SL160_, _SL75_, etc. with larger size
+    return url.replace(/_SL\d+_/, `_SL${targetSize}_`);
+  }
+
   detectHostFromTag() {
     const tag = this.partnerTag || "";
     if (tag.includes(".co.uk") || tag.endsWith("-21")) {
@@ -527,17 +534,27 @@ class AmazonPAAPI {
     // Variant images (sub-images)
     if (images.Variants && images.Variants.length > 0) {
       images.Variants.forEach((variant, index) => {
-        if (variant.Medium) {
+        // Prioritize Large, then Medium, then upgrade Small images
+        if (variant.Large) {
           productImages.push({
-            url: variant.Medium.URL,
+            url: variant.Large.URL,
+            variant: "SUB",
+            height: variant.Large.Height,
+            width: variant.Large.Width,
+            caption: `View ${index + 1}`,
+          });
+        } else if (variant.Medium) {
+          productImages.push({
+            url: this.upgradeImageUrl(variant.Medium.URL, 500),
             variant: "SUB",
             height: variant.Medium.Height,
             width: variant.Medium.Width,
             caption: `View ${index + 1}`,
           });
         } else if (variant.Small) {
+          // Upgrade small images to 500px for better quality
           productImages.push({
-            url: variant.Small.URL,
+            url: this.upgradeImageUrl(variant.Small.URL, 500),
             variant: "SUB",
             height: variant.Small.Height,
             width: variant.Small.Width,
