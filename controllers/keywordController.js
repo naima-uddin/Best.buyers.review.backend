@@ -54,7 +54,7 @@ const keywordController = {
     try {
       console.log('📋 Fetching all keywords');
       
-      const keywords = await Keyword.find({ isActive: true }).sort({ word: 1 });
+      const keywords = await Keyword.find({ isActive: true }).select('word url description caseSensitive').sort({ word: 1 }).lean();
       
       console.log(`✅ Found ${keywords.length} keywords`);
       
@@ -87,7 +87,7 @@ const keywordController = {
       }
 
       // Get all active keywords
-      const keywords = await Keyword.find({ isActive: true });
+      const keywords = await Keyword.find({ isActive: true }).select('word url caseSensitive').lean();
       let processedText = text;
       const keywordsFound = [];
 
@@ -150,7 +150,7 @@ const keywordController = {
       }
 
       // Get all keywords once
-      const keywords = await Keyword.find({ isActive: true });
+      const keywords = await Keyword.find({ isActive: true }).select('word url caseSensitive').lean();
       const results = [];
 
       console.log(`🔍 Using ${keywords.length} keywords for bulk processing`);

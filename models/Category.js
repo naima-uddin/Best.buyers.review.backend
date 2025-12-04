@@ -14,4 +14,9 @@ const categorySchema = new mongoose.Schema(
   { timestamps: true }
 );
 
+// Indexes for faster category tree queries
+categorySchema.index({ parent: 1, level: 1 });
+categorySchema.index({ name: 1, parent: 1 });
+categorySchema.index({ level: 1 });
+
 module.exports = mongoose.model("Category", categorySchema);

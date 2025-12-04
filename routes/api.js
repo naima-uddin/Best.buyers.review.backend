@@ -7,7 +7,8 @@ const userController = require("../controllers/userController");
 const categoryController = require("../controllers/categoryController");
 const keywordController = require("../controllers/keywordController");
 
-
+const { cacheMiddleware } = require("../utils/cache");
+const { invalidateCacheMiddleware } = require("../utils/cacheInvalidation");
 const { upload, handleMulterError } = require("../middleware/upload");
 const {
   productValidation,
@@ -32,24 +33,26 @@ router.use((req, res, next) => {
 // =============== PUBLIC ROUTES ===============
 // Authentication
 router.post("/auth/login", authController.login);
-// Products
-router.get("/products", productController.getAllProducts);
-router.get("/products/:id", productController.getProductById);
-router.get("/products/:asin", productController.getProduct);
+
+// Products - with caching
+router.get("/products", cacheMiddleware(300), productController.getAllProducts); // 5 min cache
+router.get("/products/:id", cacheMiddleware(300), productController.getProductById);
+router.get("/products/:asin", cacheMiddleware(300), productController.getProduct);
+
 // Keywords
-router.get("/keywords", keywordController.getAllKeywords);
-// Categories (Public - Read Only)
-router.get("/categories", categoryController.getAllCategories);
-router.get("/featured", productController.getFeaturedProducts);
-router.get("/category/search", categoryController.searchCategory);
+router.get("/keywords", cacheMiddleware(3600), keywordController.getAllKeywords); // 1 hour cache
 
+// Categories (Public - Read Only) - cache heavily as they change rarely
+router.get("/categories", cacheMiddleware(3600), categoryController.getAllCategories); // 1 hour cache
+router.get("/category/search", cacheMiddleware(600), categoryController.searchCategory); // 10 min cache
 
-// Blogs (Public - Read Only)
-router.get("/blog",blogController.getAllBlogs);
-router.get("/blog/:slug",blogController.getBlogBySlug);
+// Featured products - with caching
+router.get("/featured", cacheMiddleware(300), productController.getFeaturedProducts); // 5 min cache
+router.get("/labels", cacheMiddleware(300), productController.getProductsByLabels); // 5 min cache
 
-// Add this route to your product routes
-router.get("/labels", productController.getProductsByLabels);
+// Blogs (Public - Read Only) - with caching
+router.get("/blog", cacheMiddleware(600), blogController.getAllBlogs); // 10 min cache
+router.get("/blog/:slug", cacheMiddleware(1800), blogController.getBlogBySlug); // 30 min cache
 
 
 
@@ -77,26 +80,42 @@ router.use((req, res, next) => {
 // =============== PRODUCT MANAGEMENT (ADMIN) ===============
 router.post(
   "/products/add",
+  invalidateCacheMiddleware("cache:/api/products*", "cache:/api/featured*", "cache:/api/labels*"),
   productValidation.validateASINs,
   productController.addProducts
 );
 router.patch(
   "/products/:id",
+  invalidateCacheMiddleware("cache:/api/products*", "cache:/api/featured*", "cache:/api/labels*"),
   productValidation.validateProductUpdate,
   productController.updateProductById
 );
 router.patch(
   "/products/:asin",
+  invalidateCacheMiddleware("cache:/api/products*", "cache:/api/featured*", "cache:/api/labels*"),
   productValidation.validateProductUpdate,
   productController.updateProduct
 );
-router.patch("/products/refresh/:asin", productController.refreshProduct);
-router.post("/products/bulk-refresh", productController.bulkRefresh);
+router.patch(
+  "/products/refresh/:asin",
+  invalidateCacheMiddleware("cache:/api/products*"),
+  productController.refreshProduct
+);
+router.post(
+  "/products/bulk-refresh",
+  invalidateCacheMiddleware("cache:/api/products*", "cache:/api/featured*", "cache:/api/labels*"),
+  productController.bulkRefresh
+);
 
 // Delete routes
-router.delete("/products/:asin", productController.deleteProduct);
+router.delete(
+  "/products/:asin",
+  invalidateCacheMiddleware("cache:/api/products*", "cache:/api/featured*", "cache:/api/labels*"),
+  productController.deleteProduct
+);
 router.patch(
   "/products/:asin/soft-delete",
+  invalidateCacheMiddleware("cache:/api/products*", "cache:/api/featured*", "cache:/api/labels*"),
   productController.softDeleteProduct
 );
 
@@ -104,6 +123,7 @@ router.patch(
 // ✅ Create category (auto-detects main/sub/sub-sub)
 router.post(
   "/categories",
+  invalidateCacheMiddleware("cache:/api/categories*", "cache:/api/category/*"),
   upload.single("image"),
   handleMulterError,
   categoryController.createCategory
@@ -112,13 +132,18 @@ router.post(
 // ✅ Update category (optional image)
 router.put(
   "/categories/:id",
+  invalidateCacheMiddleware("cache:/api/categories*", "cache:/api/category/*"),
   upload.single("image"),
   handleMulterError,
   categoryController.updateCategory
 );
 
 // ✅ Delete category (and all nested subcategories)
-router.delete("/categories/:id", categoryController.deleteCategory);
+router.delete(
+  "/categories/:id",
+  invalidateCacheMiddleware("cache:/api/categories*", "cache:/api/category/*"),
+  categoryController.deleteCategory
+);
 
 // =============== USER MANAGEMENT (ADMIN) ===============
 router.get("/users", requireAdmin, userController.getAllUsers);
