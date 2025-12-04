@@ -156,7 +156,7 @@ const productController = {
     }
   },
 
-  // Get all products with pagination
+  // Get all products with pagination (optimized)
   getAllProducts: async (req, res) => {
     try {
       const {
@@ -450,9 +450,9 @@ const productController = {
       ]);
 
       const totalPages = Math.ceil(total / limitNum);
-      // Limit to maximum 4 pages (24 products) per label
-      const effectiveTotalPages = Math.min(totalPages, 4);
-      const effectiveTotal = Math.min(total, 24);
+      // Limit to maximum 5 pages (30 products) per label
+      const effectiveTotalPages = Math.min(totalPages, 5);
+      const effectiveTotal = Math.min(total, 30);
 
       console.log(`✅ Found ${products.length} products (showing ${effectiveTotal} out of ${total} total, pages: ${effectiveTotalPages})`);
 
@@ -538,8 +538,8 @@ getFeaturedProducts: async (req, res) => {
 
     const totalPages = Math.ceil(total / limitNum);
     // Limit to maximum 4 pages (24 products)
-    const effectiveTotalPages = Math.min(totalPages, 4);
-    const effectiveTotal = Math.min(total, 24);
+    const effectiveTotalPages = Math.min(totalPages, 5);
+    const effectiveTotal = Math.min(total, 30);
 
     console.log(`✅ Found ${featuredProducts.length} featured products (showing ${effectiveTotal} out of ${total} total, pages: ${effectiveTotalPages})`);
 

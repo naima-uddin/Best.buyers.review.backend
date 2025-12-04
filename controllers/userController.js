@@ -8,7 +8,7 @@ const userController = {
       const { name, email, password, role = 'moderator' } = req.body;
 
       // Check if user already exists
-      const existingUser = await User.findOne({ email: email.toLowerCase() });
+      const existingUser = await User.findOne({ email: email.toLowerCase() }).select('_id').lean();
       if (existingUser) {
         return res.status(400).json({
           success: false,
@@ -53,7 +53,8 @@ const userController = {
     try {
       const users = await User.find({})
         .select('-password')
-        .sort({ createdAt: -1 });
+        .sort({ createdAt: -1 })
+        .lean();
 
       res.json({
         success: true,

@@ -21,7 +21,18 @@ app.use(helmet());
 //     origin: "*",
 //   })
 // );
-app.use(compression());
+
+// ⚡ Enable aggressive compression for all responses
+app.use(compression({
+  level: 6, // Compression level (0-9, 6 is good balance)
+  threshold: 1024, // Only compress responses larger than 1KB
+  filter: (req, res) => {
+    if (req.headers['x-no-compression']) {
+      return false;
+    }
+    return compression.filter(req, res);
+  }
+}));
 
 const allowedOrigins = [
   "https://www.bestbuyersview.com",
@@ -49,15 +60,25 @@ app.use(
 app.use(express.json({ limit: '50mb' })); // Increased from default ~100KB to 50MB
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
-// ✅ Serve uploaded images with CORP fix
+// ✅ Serve uploaded images with CORP fix and aggressive caching
 app.use(
   "/uploads",
   (req, res, next) => {
     res.setHeader("Cross-Origin-Resource-Policy", "cross-origin");
+    res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
     next();
   },
   express.static(path.join(__dirname, "public", "uploads"))
 );
+
+// Add cache-control headers to API responses
+app.use("/api", (req, res, next) => {
+  // Only add cache headers for GET requests
+  if (req.method === 'GET') {
+    res.setHeader("Cache-Control", "public, max-age=300, s-maxage=600, stale-while-revalidate=86400");
+  }
+  next();
+});
 
 // API
 app.use("/api", apiRoutes);

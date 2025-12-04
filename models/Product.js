@@ -183,6 +183,12 @@ const productSchema = new mongoose.Schema(
 // Indexes for better query performance
 productSchema.index({ "price.amount": 1 });
 productSchema.index({ brand: 1 });
+productSchema.index({ asin: 1 }, { unique: true });
+productSchema.index({ mainCategory: 1, subCategory: 1, subSubCategory: 1 });
+productSchema.index({ isFeatured: 1, isActive: 1 });
+productSchema.index({ labels: 1, isActive: 1 });
+productSchema.index({ isActive: 1, createdAt: -1 });
+productSchema.index({ "customRating.rating": -1 });
 productSchema.index({ mainCategory: 1 });
 productSchema.index({ lastUpdated: -1 });
 productSchema.index({ isFeatured: 1 });
