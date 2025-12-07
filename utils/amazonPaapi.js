@@ -349,16 +349,35 @@ class AmazonPAAPI {
 
       const data = response.data;
 
+      // Collect all invalid ASINs from various error sources
+      let invalidAsins = [];
+
+      // Check for ItemsNotFound in the response
+      const itemsNotFound = data.ItemsResult?.ItemsNotFound || [];
+      if (itemsNotFound.length > 0) {
+        invalidAsins = itemsNotFound.map(item => item.ASIN || item);
+      }
+
+      // Check if there are errors but also check for partial results
       if (data.Errors && data.Errors.length > 0) {
         console.error("❌ PAAPI Errors:", data.Errors);
 
-        // Provide more helpful error messages
         const error = data.Errors[0];
-        if (error.Code === "InvalidParameterValue") {
+        
+        // If we have InvalidParameterValue error and no ItemsResult, all ASINs are invalid
+        if (error.Code === "InvalidParameterValue" && !data.ItemsResult) {
+          invalidAsins = asins;
+        }
+        
+        // If we have collected invalid ASINs, show them
+        if (invalidAsins.length > 0) {
           throw new Error(
-            `Invalid ASIN(s). Please check if the products exist in ${this.getMarketplace()}`
+            `Invalid ASIN(s): ${invalidAsins.join(", ")}. Please check if the products exist in ${this.getMarketplace()}`
           );
-        } else if (error.Code === "NoResults") {
+        }
+        
+        // Handle other error types
+        if (error.Code === "NoResults") {
           throw new Error(
             "No products found for the given ASINs in your region"
           );
@@ -367,18 +386,20 @@ class AmazonPAAPI {
         }
       }
 
+      // If we found invalid ASINs but no errors, still throw
+      if (invalidAsins.length > 0) {
+        console.error("❌ These ASINs were not found by Amazon:", invalidAsins.join(", "));
+        throw new Error(
+          `Invalid ASIN(s): ${invalidAsins.join(", ")}. Please check if the products exist in ${this.getMarketplace()}`
+        );
+      }
+
       if (
         !data.ItemsResult ||
         !data.ItemsResult.Items ||
         data.ItemsResult.Items.length === 0
       ) {
         throw new Error("No products found for the given ASINs");
-      }
-
-      // Check for ItemsNotFound errors
-      const itemsNotFound = data.ItemsResult.ItemsNotFound || [];
-      if (itemsNotFound.length > 0) {
-        console.warn("⚠️ These ASINs were not found by Amazon:", itemsNotFound.join(", "));
       }
 
       const fetchedCount = data.ItemsResult.Items.length;
