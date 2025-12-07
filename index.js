@@ -1,7 +1,7 @@
 const express = require("express");
 const cors = require("cors");
 const helmet = require("helmet");
-const compression = require('compression');
+const compression = require("compression");
 const path = require("path");
 require("dotenv").config();
 
@@ -23,16 +23,18 @@ app.use(helmet());
 // );
 
 // ⚡ Enable aggressive compression for all responses
-app.use(compression({
-  level: 6, // Compression level (0-9, 6 is good balance)
-  threshold: 1024, // Only compress responses larger than 1KB
-  filter: (req, res) => {
-    if (req.headers['x-no-compression']) {
-      return false;
-    }
-    return compression.filter(req, res);
-  }
-}));
+app.use(
+  compression({
+    level: 6, // Compression level (0-9, 6 is good balance)
+    threshold: 1024, // Only compress responses larger than 1KB
+    filter: (req, res) => {
+      if (req.headers["x-no-compression"]) {
+        return false;
+      }
+      return compression.filter(req, res);
+    },
+  })
+);
 
 const allowedOrigins = [
   "https://www.bestbuyersview.com",
@@ -56,9 +58,8 @@ app.use(
   })
 );
 
-
-app.use(express.json({ limit: '50mb' })); // Increased from default ~100KB to 50MB
-app.use(express.urlencoded({ extended: true, limit: '50mb' }));
+app.use(express.json({ limit: "50mb" })); // Increased from default ~100KB to 50MB
+app.use(express.urlencoded({ extended: true, limit: "50mb" }));
 
 // ✅ Serve uploaded images with CORP fix and aggressive caching
 app.use(
@@ -73,9 +74,21 @@ app.use(
 
 // Add cache-control headers to API responses
 app.use("/api", (req, res, next) => {
-  // Only add cache headers for GET requests
-  if (req.method === 'GET') {
-    res.setHeader("Cache-Control", "public, max-age=300, s-maxage=600, stale-while-revalidate=86400");
+  // Disable cache for authenticated admin requests (dashboard)
+  const authHeader = req.headers.authorization;
+  if (authHeader && authHeader.startsWith("Bearer ")) {
+    res.setHeader(
+      "Cache-Control",
+      "no-store, no-cache, must-revalidate, private"
+    );
+    res.setHeader("Pragma", "no-cache");
+    res.setHeader("Expires", "0");
+  } else if (req.method === "GET") {
+    // Only add cache headers for public GET requests (frontend)
+    res.setHeader(
+      "Cache-Control",
+      "public, max-age=300, s-maxage=600, stale-while-revalidate=86400"
+    );
   }
   next();
 });
