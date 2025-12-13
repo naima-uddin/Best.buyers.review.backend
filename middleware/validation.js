@@ -50,6 +50,8 @@ const productValidation = {
       subSubCategory: Joi.string().max(100).allow("", null),
 
       labels: Joi.array().items(Joi.string()).default([]),
+      boughtInPastMonth: Joi.string().max(100).allow(""),
+
       // Images
       images: Joi.array().items(
         Joi.object({
@@ -61,8 +63,6 @@ const productValidation = {
           altText: Joi.string().allow(""),
         }).unknown(true)
       ),
-
-      boughtInPastMonth: Joi.string().max(20).allow(""),
 
       // Pricing
       price: Joi.object({
