@@ -62,6 +62,8 @@ const productValidation = {
         }).unknown(true)
       ),
 
+      boughtInPastMonth: Joi.string().max(20).allow(""),
+
       // Pricing
       price: Joi.object({
         amount: Joi.number().min(0),

@@ -111,6 +111,12 @@ const productSchema = new mongoose.Schema(
       reviewCount: Number,
     },
 
+    // Bought in Past Month
+    boughtInPastMonth: {
+      type: String,
+      trim: true,
+    },
+
     // Product Details
     description: String,
     descriptionTitle: String,
