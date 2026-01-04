@@ -58,12 +58,15 @@ router.get(
   productController.getProductsByLabels
 ); // 5 min cache
 
-// Blogs (Public - Read Only) - with caching
-router.get("/blog", cacheMiddleware(600), blogController.getAllBlogs); // 10 min cache
-router.get("/blog/:slug", cacheMiddleware(1800), blogController.getBlogBySlug); // 30 min cache
+// Blogs (Public - Read Only) - NO caching for immediate updates
+router.get("/blog", blogController.getAllBlogs);
+router.get("/blog/:slug", blogController.getBlogBySlug);
 
 // =============== ADMIN PROTECTED ROUTES ===============
 router.use(authenticateAdmin);
+
+// Admin blog list (no cache, includes unpublished) - must use different path
+router.get("/admin/blogs", blogController.getAllBlogsAdmin);
 
 // Debug route
 router.post("/test-formdata", (req, res) => {
@@ -192,9 +195,9 @@ router.put(
 router.delete("/users/:id", requireAdmin, userController.deleteUser);
 
 // =============== BLOG MANAGEMENT ===============
-router.post("/blog", blogController.createBlog);
-router.patch("/blog/:slug", blogController.updateBlog);
-router.delete("/blog/:slug", blogController.deleteBlog);
+router.post("/blog", invalidateCacheMiddleware("cache:/blog", "cache:/blog/*"), blogController.createBlog);
+router.patch("/blog/:slug", invalidateCacheMiddleware("cache:/blog", "cache:/blog/*"), blogController.updateBlog);
+router.delete("/blog/:slug", invalidateCacheMiddleware("cache:/blog", "cache:/blog/*"), blogController.deleteBlog);
 
 // =============== KEYWORDS (ADMIN) ===============
 router.post("/keywords", keywordController.createKeyword);

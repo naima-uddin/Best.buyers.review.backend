@@ -107,12 +107,28 @@ export const getAllBlogs = async (req, res) => {
       .lean() // Convert to plain JS objects (5-10x faster)
       .limit(100); // Limit results for faster queries
     
-    // Set aggressive caching headers
-    res.set({
-      'Cache-Control': 'public, max-age=3600, s-maxage=3600',
-      'CDN-Cache-Control': 'public, max-age=7200',
-      'Surrogate-Control': 'max-age=3600'
-    });
+    // No caching - updates show immediately
+    res.set({ 'Cache-Control': 'no-store' });
+    
+    res.status(200).json({ success: true, data: blogs });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// ---------------------------------------------------------
+// GET ALL BLOGS (ADMIN - includes unpublished)
+// ---------------------------------------------------------
+export const getAllBlogsAdmin = async (req, res) => {
+  try {
+    // Fetch ALL blogs for admin (including unpublished)
+    const blogs = await Blog.find({})
+      .select('title slug excerpt description featuredImage categories tags isFeatured published datePublished createdAt')
+      .sort({ createdAt: -1 })
+      .lean();
+    
+    // No caching for admin routes
+    res.set({ 'Cache-Control': 'no-store' });
     
     res.status(200).json({ success: true, data: blogs });
   } catch (error) {
@@ -125,7 +141,10 @@ export const getAllBlogs = async (req, res) => {
 // ---------------------------------------------------------
 export const getBlogBySlug = async (req, res) => {
   try {
-    const { slug } = req.params;
+    // Decode the slug in case it's URL encoded
+    const slug = decodeURIComponent(req.params.slug);
+    console.log("📖 Fetching blog with slug:", slug);
+    
     const blog = await Blog.findOne({ slug });
 
     if (!blog)
@@ -144,7 +163,10 @@ export const getBlogBySlug = async (req, res) => {
 // ---------------------------------------------------------
 export const updateBlog = async (req, res) => {
   try {
-    const { slug } = req.params;
+    // Decode the slug in case it's URL encoded
+    const slug = decodeURIComponent(req.params.slug);
+    console.log("📝 Updating blog with slug:", slug);
+    
     const updateData = req.body;
 
     // Find blog by old slug
@@ -193,7 +215,9 @@ export const updateBlog = async (req, res) => {
 // ---------------------------------------------------------
 export const deleteBlog = async (req, res) => {
   try {
-    const { slug } = req.params;
+    // Decode the slug in case it's URL encoded
+    const slug = decodeURIComponent(req.params.slug);
+    console.log("🗑️ Deleting blog with slug:", slug);
 
     const deletedBlog = await Blog.findOneAndDelete({ slug });
 
@@ -207,6 +231,7 @@ export const deleteBlog = async (req, res) => {
       message: "Blog deleted successfully",
     });
   } catch (error) {
+    console.error("❌ Error deleting blog:", error);
     res.status(500).json({ success: false, message: error.message });
   }
 };
@@ -217,6 +242,7 @@ export const deleteBlog = async (req, res) => {
 export default {
   createBlog,
   getAllBlogs,
+  getAllBlogsAdmin,
   getBlogBySlug,
   updateBlog,
   deleteBlog,
