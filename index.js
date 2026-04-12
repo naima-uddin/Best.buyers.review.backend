@@ -7,6 +7,8 @@ require("dotenv").config();
 
 const connectDB = require("./config/database");
 const apiRoutes = require("./routes/api");
+const blogRoutes = require("./routes/blog");
+const adminRoutes = require("./routes/admin");
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -55,6 +57,7 @@ app.use(
         callback(new Error("CORS not allowed"));
       }
     },
+    credentials: true, // Allow cookies/credentials
   })
 );
 
@@ -93,7 +96,9 @@ app.use("/api", (req, res, next) => {
   next();
 });
 
-// API
+// API - Blog routes MUST come first (more specific path)
+app.use("/api/blog", blogRoutes);
+app.use("/api/admin", adminRoutes);
 app.use("/api", apiRoutes);
 
 // Error handler

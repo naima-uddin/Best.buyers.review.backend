@@ -26,6 +26,17 @@ const normalizeCategories = (cats) => {
   });
 };
 
+// ---------------------------------------------------------
+// Helper: Calculate reading time from HTML content
+// ---------------------------------------------------------
+const calculateReadingTime = (htmlContent) => {
+  if (!htmlContent) return 5;
+  // Strip HTML tags and count words
+  const text = htmlContent.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
+  const wordCount = text.split(' ').filter(word => word.length > 0).length;
+  // Average reading speed: 200 words per minute
+  return Math.max(1, Math.ceil(wordCount / 200));
+};
 
 // ---------------------------------------------------------
 // CREATE BLOG
@@ -33,8 +44,6 @@ const normalizeCategories = (cats) => {
 export const createBlog = async (req, res) => {
   try {
     console.log("📥 Received blog creation request");
-    console.log("📦 Request body:", req.body);
-    console.log("📦 Request headers:", req.headers);
 
     let blogData = { ...req.body };
 
@@ -43,16 +52,16 @@ export const createBlog = async (req, res) => {
       if (blogData[field] && typeof blogData[field] === 'string') {
         try {
           blogData[field] = JSON.parse(blogData[field]);
-          console.log(`✅ Parsed field: ${field}`);
         } catch (err) {
           console.log(`❌ Failed to parse field: ${field}`, err);
         }
       }
     };
 
-    ["author", "seo", "tags", "categories", "content", "anchorTags"].forEach(parseField);
+    ["author", "seo", "tags", "categories", "anchorTags", "featuredImage", 
+     "additionalImages", "videos", "dynamicSections"].forEach(parseField);
 
-    // Handle featured image URL if provided
+    // Handle featured image URL if provided as string
     if (blogData.featuredImageUrl && !blogData.featuredImage) {
       blogData.featuredImage = {
         url: blogData.featuredImageUrl,
@@ -63,7 +72,6 @@ export const createBlog = async (req, res) => {
     // Auto-generate slug if not provided
     if (!blogData.slug && blogData.title) {
       blogData.slug = generateSlug(blogData.title);
-      console.log(`✅ Generated slug: ${blogData.slug}`);
     }
 
     // Normalize categories
@@ -71,7 +79,17 @@ export const createBlog = async (req, res) => {
       blogData.categories = normalizeCategories(blogData.categories);
     }
 
-    console.log("📝 Final blog data before creation:", blogData);
+    // Calculate reading time from content
+    if (blogData.content && !blogData.readingTime) {
+      blogData.readingTime = calculateReadingTime(blogData.content);
+    }
+
+    // Set default author if not provided
+    if (!blogData.author) {
+      blogData.author = { name: "Best Buyers View" };
+    }
+
+    console.log("📝 Creating blog:", blogData.title);
 
     const newBlog = await Blog.create(blogData);
     console.log("✅ Blog created successfully:", newBlog._id);
@@ -83,9 +101,7 @@ export const createBlog = async (req, res) => {
     });
 
   } catch (error) {
-    console.log("❌ Create Blog Error:", error);
-    console.log("❌ Error details:", error.message);
-    console.log("❌ Error stack:", error.stack);
+    console.log("❌ Create Blog Error:", error.message);
     res.status(500).json({ 
       success: false, 
       message: error.message,
@@ -100,17 +116,52 @@ export const createBlog = async (req, res) => {
 // ---------------------------------------------------------
 export const getAllBlogs = async (req, res) => {
   try {
-    // Only fetch necessary fields for list view (not full content)
-    const blogs = await Blog.find({ published: true })
-      .select('title slug excerpt description featuredImage categories tags isFeatured datePublished createdAt')
-      .sort({ createdAt: -1 })
-      .lean() // Convert to plain JS objects (5-10x faster)
-      .limit(100); // Limit results for faster queries
+    const { page = 1, limit = 20, q, tag, featured, category } = req.query;
+    const skip = (Math.max(1, page) - 1) * limit;
     
-    // No caching - updates show immediately
+    // Build filter
+    const filter = { published: true };
+    
+    // Search query
+    if (q) {
+      filter.$or = [
+        { title: new RegExp(q, 'i') },
+        { excerpt: new RegExp(q, 'i') },
+        { description: new RegExp(q, 'i') }
+      ];
+    }
+    
+    // Tag filter
+    if (tag) filter.tags = tag;
+    
+    // Featured filter
+    if (featured === 'true') filter.isFeatured = true;
+    if (featured === 'false') filter.isFeatured = { $ne: true };
+    
+    // Category filter
+    if (category) {
+      filter['categories.name'] = new RegExp(category, 'i');
+    }
+
+    const [blogs, total] = await Promise.all([
+      Blog.find(filter)
+        .select('title slug excerpt description featuredImage categories tags isFeatured author readingTime datePublished publishDate createdAt')
+        .sort({ createdAt: -1 })
+        .skip(Number(skip))
+        .limit(Number(limit))
+        .lean(),
+      Blog.countDocuments(filter)
+    ]);
+    
     res.set({ 'Cache-Control': 'no-store' });
-    
-    res.status(200).json({ success: true, data: blogs });
+    res.status(200).json({ 
+      success: true, 
+      data: blogs,
+      total,
+      page: Number(page),
+      limit: Number(limit),
+      pages: Math.ceil(total / limit)
+    });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
@@ -121,15 +172,12 @@ export const getAllBlogs = async (req, res) => {
 // ---------------------------------------------------------
 export const getAllBlogsAdmin = async (req, res) => {
   try {
-    // Fetch ALL blogs for admin (including unpublished)
     const blogs = await Blog.find({})
-      .select('title slug excerpt description featuredImage categories tags isFeatured published datePublished createdAt')
+      .select('title slug excerpt description featuredImage categories tags isFeatured published author readingTime datePublished createdAt')
       .sort({ createdAt: -1 })
       .lean();
     
-    // No caching for admin routes
     res.set({ 'Cache-Control': 'no-store' });
-    
     res.status(200).json({ success: true, data: blogs });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
@@ -141,11 +189,10 @@ export const getAllBlogsAdmin = async (req, res) => {
 // ---------------------------------------------------------
 export const getBlogBySlug = async (req, res) => {
   try {
-    // Decode the slug in case it's URL encoded
     const slug = decodeURIComponent(req.params.slug);
     console.log("📖 Fetching blog with slug:", slug);
     
-    const blog = await Blog.findOne({ slug });
+    const blog = await Blog.findOne({ slug }).lean();
 
     if (!blog)
       return res
@@ -159,15 +206,89 @@ export const getBlogBySlug = async (req, res) => {
 };
 
 // ---------------------------------------------------------
+// GET RELATED BLOGS
+// ---------------------------------------------------------
+export const getRelatedBlogs = async (req, res) => {
+  try {
+    const slug = decodeURIComponent(req.params.slug);
+    const { limit = 4 } = req.query;
+    
+    // Get the current blog
+    const currentBlog = await Blog.findOne({ slug, published: true }).lean();
+    if (!currentBlog) {
+      return res.status(404).json({ success: false, message: "Blog not found" });
+    }
+    
+    // Build query to find related posts
+    const relatedQuery = {
+      published: true,
+      _id: { $ne: currentBlog._id }
+    };
+    
+    // Find posts with matching categories or tags
+    const orConditions = [];
+    if (currentBlog.categories && currentBlog.categories.length > 0) {
+      const categoryNames = currentBlog.categories.map(c => c.name);
+      orConditions.push({ 'categories.name': { $in: categoryNames } });
+    }
+    if (currentBlog.tags && currentBlog.tags.length > 0) {
+      orConditions.push({ tags: { $in: currentBlog.tags } });
+    }
+    
+    if (orConditions.length > 0) {
+      relatedQuery.$or = orConditions;
+    }
+    
+    // Fetch related posts
+    let relatedBlogs = await Blog.find(relatedQuery)
+      .select('title slug excerpt featuredImage author readingTime categories tags datePublished createdAt')
+      .sort({ datePublished: -1 })
+      .limit(Number(limit))
+      .lean();
+    
+    // If not enough related posts, fill with latest posts
+    if (relatedBlogs.length < Number(limit)) {
+      const additionalBlogs = await Blog.find({
+        published: true,
+        _id: { $nin: [currentBlog._id, ...relatedBlogs.map(b => b._id)] }
+      })
+        .select('title slug excerpt featuredImage author readingTime categories tags datePublished createdAt')
+        .sort({ datePublished: -1 })
+        .limit(Number(limit) - relatedBlogs.length)
+        .lean();
+      
+      relatedBlogs = [...relatedBlogs, ...additionalBlogs];
+    }
+    
+    res.status(200).json({ success: true, data: relatedBlogs });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// ---------------------------------------------------------
 // UPDATE BLOG (SAFE — FINDS BY SLUG BUT UPDATES BY ID)
 // ---------------------------------------------------------
 export const updateBlog = async (req, res) => {
   try {
-    // Decode the slug in case it's URL encoded
     const slug = decodeURIComponent(req.params.slug);
     console.log("📝 Updating blog with slug:", slug);
     
-    const updateData = req.body;
+    let updateData = { ...req.body };
+
+    // Parse JSON fields if they exist as strings
+    const parseField = (field) => {
+      if (updateData[field] && typeof updateData[field] === 'string') {
+        try {
+          updateData[field] = JSON.parse(updateData[field]);
+        } catch (err) {
+          console.log(`❌ Failed to parse field: ${field}`, err);
+        }
+      }
+    };
+
+    ["author", "seo", "tags", "categories", "anchorTags", "featuredImage", 
+     "additionalImages", "videos", "dynamicSections"].forEach(parseField);
 
     // Find blog by old slug
     const existingBlog = await Blog.findOne({ slug });
@@ -178,7 +299,7 @@ export const updateBlog = async (req, res) => {
     }
 
     // Regenerate slug ONLY if title changed
-    if (updateData.title) {
+    if (updateData.title && updateData.title !== existingBlog.title) {
       updateData.slug = generateSlug(updateData.title);
     }
 
@@ -187,7 +308,12 @@ export const updateBlog = async (req, res) => {
       updateData.categories = normalizeCategories(updateData.categories);
     }
 
-    // Manual timestamps (findOneAndUpdate does NOT run pre('save'))
+    // Calculate reading time from content
+    if (updateData.content) {
+      updateData.readingTime = calculateReadingTime(updateData.content);
+    }
+
+    // Manual timestamps
     updateData.dateModified = new Date();
 
     if (updateData.published === true && !existingBlog.datePublished) {
@@ -215,7 +341,6 @@ export const updateBlog = async (req, res) => {
 // ---------------------------------------------------------
 export const deleteBlog = async (req, res) => {
   try {
-    // Decode the slug in case it's URL encoded
     const slug = decodeURIComponent(req.params.slug);
     console.log("🗑️ Deleting blog with slug:", slug);
 
@@ -244,6 +369,7 @@ export default {
   getAllBlogs,
   getAllBlogsAdmin,
   getBlogBySlug,
+  getRelatedBlogs,
   updateBlog,
   deleteBlog,
 };

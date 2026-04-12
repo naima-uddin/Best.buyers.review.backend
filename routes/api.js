@@ -15,7 +15,6 @@ const {
   userValidation,
 } = require("../middleware/validation");
 const { authenticateAdmin, requireAdmin } = require("../middleware/auth");
-const { default: blogController } = require("../controllers/blogController");
 
 console.log("🔄 Loading API routes...");
 
@@ -58,15 +57,11 @@ router.get(
   productController.getProductsByLabels
 ); // 5 min cache
 
-// Blogs (Public - Read Only) - NO caching for immediate updates
-router.get("/blog", blogController.getAllBlogs);
-router.get("/blog/:slug", blogController.getBlogBySlug);
+// Blog routes are now handled by /api/blog routes (see routes/blog.js)
+// All blog endpoints moved to dedicated blog router
 
 // =============== ADMIN PROTECTED ROUTES ===============
 router.use(authenticateAdmin);
-
-// Admin blog list (no cache, includes unpublished) - must use different path
-router.get("/admin/blogs", blogController.getAllBlogsAdmin);
 
 // Debug route
 router.post("/test-formdata", (req, res) => {
@@ -195,9 +190,63 @@ router.put(
 router.delete("/users/:id", requireAdmin, userController.deleteUser);
 
 // =============== BLOG MANAGEMENT ===============
-router.post("/blog", invalidateCacheMiddleware("cache:/blog", "cache:/blog/*"), blogController.createBlog);
-router.patch("/blog/:slug", invalidateCacheMiddleware("cache:/blog", "cache:/blog/*"), blogController.updateBlog);
-router.delete("/blog/:slug", invalidateCacheMiddleware("cache:/blog", "cache:/blog/*"), blogController.deleteBlog);
+// Blog routes moved to routes/blog.js
+// Access via /api/blog/* endpoints
+
+// =============== ADMIN UPLOAD ===============
+const uploadMulter = require("multer")({ 
+  storage: require("multer").memoryStorage(),
+  limits: { fileSize: 50 * 1024 * 1024 } // 50MB for videos
+});
+
+router.post("/admin/upload", uploadMulter.single("file"), async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ ok: false, error: "No file uploaded" });
+    }
+
+    const fs = require("fs");
+    const path = require("path");
+    
+    // Get folder from request or use default
+    const folder = req.body.folder || "uploads";
+    const uploadDir = path.join(__dirname, "../public/uploads", folder);
+    
+    // Create directory if it doesn't exist
+    if (!fs.existsSync(uploadDir)) {
+      fs.mkdirSync(uploadDir, { recursive: true });
+    }
+
+    // Generate unique filename
+    const ext = path.extname(req.file.originalname);
+    const filename = `${Date.now()}-${Math.round(Math.random() * 1e9)}${ext}`;
+    const filepath = path.join(uploadDir, filename);
+
+    // Write file
+    fs.writeFileSync(filepath, req.file.buffer);
+
+    // Determine resource type
+    const isVideo = req.file.mimetype.startsWith("video/");
+    const resourceType = isVideo ? "video" : "image";
+
+    // Build URL
+    const baseUrl = process.env.API_BASE_URL || `http://localhost:${process.env.PORT || 5000}`;
+    const url = `${baseUrl}/uploads/${folder}/${filename}`;
+
+    res.json({
+      ok: true,
+      asset: {
+        url,
+        public_id: `${folder}/${filename}`,
+        format: ext.replace(".", ""),
+        resourceType
+      }
+    });
+  } catch (error) {
+    console.error("Upload error:", error);
+    res.status(500).json({ ok: false, error: error.message });
+  }
+});
 
 // =============== KEYWORDS (ADMIN) ===============
 router.post("/keywords", keywordController.createKeyword);

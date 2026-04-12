@@ -15,8 +15,10 @@
   "dependencies": {
     "amazon-pa-api50": "^0.2.0",
     "axios": "^1.12.2",
+    "bcrypt": "^6.0.0",
     "bcryptjs": "^3.0.2",
     "body-parser": "^2.2.0",
+    "cloudinary": "^2.9.0",
     "compression": "^1.8.1",
     "cors": "^2.8.5",
     "crypto": "^1.0.1",
@@ -28,7 +30,8 @@
     "jsonwebtoken": "^9.0.2",
     "mongoose": "^8.19.1",
     "multer": "^2.0.2",
-    "node-fetch": "^2.7.0"
+    "node-fetch": "^2.7.0",
+    "sharp": "^0.34.5"
   },
   "devDependencies": {
     "esbuild": "^0.25.12",
