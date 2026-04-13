@@ -81,8 +81,8 @@ BlogPostSchema.pre('save', async function(next) {
     this.slug = slug;
   }
   
-  // Calculate reading time from content
-  if (this.isModified('content') && this.content) {
+  // Auto-calculate reading time only when it was not set manually
+  if (this.isModified('content') && this.content && !this.isModified('readingTime')) {
     const wordCount = this.content.replace(/<[^>]*>/g, '').split(/\s+/).filter(Boolean).length;
     this.readingTime = Math.ceil(wordCount / 200) || 1;
   }

@@ -569,12 +569,16 @@ router.delete('/admin/categories/:id', async (req, res) => {
     if (!category) {
       return res.status(404).json({ success: false, message: 'Category not found' });
     }
-    
-    // Remove category from all blogs
-    await BlogPost.updateMany(
-      { categories: category._id },
-      { $pull: { categories: category._id } }
-    );
+
+    const assignedBlogsCount = await BlogPost.countDocuments({ categories: category._id });
+    if (assignedBlogsCount > 0) {
+      return res.status(409).json({
+        success: false,
+        hasAssignedBlogs: true,
+        assignedBlogsCount,
+        message: `Cannot delete category. ${assignedBlogsCount} blog(s) are still assigned to this category.`
+      });
+    }
     
     await BlogCategory.findByIdAndDelete(req.params.id);
     
